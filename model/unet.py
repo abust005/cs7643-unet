@@ -1,14 +1,14 @@
 import torch.nn as nn
-from unet_blocks import *
+from model.unet_blocks import *
 
 class UNet(nn.Module):
   
-  def __init__(self):
+  def __init__(self, in_channels=3):
     super().__init__()
 
     self.module_list = nn.ModuleDict(
       {
-        'down_conv_1' : DownConv(3, 64),
+        'down_conv_1' : DownConv(in_channels, 64),
         'down_conv_2' : DownConv(64, 128),
         'down_conv_3' : DownConv(128, 256),
         'down_conv_4' : DownConv(256, 512),
@@ -23,6 +23,9 @@ class UNet(nn.Module):
 
   def forward(self, x):
     
+    if type(x) != torch.Tensor:
+      x = torch.Tensor(x)
+
     x1_crop, x1 = self.module_list['down_conv_1'](x)
     x2_crop, x2 = self.module_list['down_conv_2'](x1)
     x3_crop, x3 = self.module_list['down_conv_3'](x2)
