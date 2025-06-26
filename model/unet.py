@@ -17,7 +17,7 @@ class UNet(nn.Module):
         'up_conv_2' : UpConv(512),
         'up_conv_3' : UpConv(256),
         'up_conv_4' : UpConv(128),
-        'conv_2' : nn.Conv2d(64, num_classes, kernel_size=1)
+        'conv_2' : nn.Conv2d(64, num_classes+1, kernel_size=1)
       }
     )
 
