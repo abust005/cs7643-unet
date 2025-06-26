@@ -8,7 +8,7 @@ import torch.nn as nn
 '''
 
 class ConvBlock(nn.Module):
-  def __init__(self, in_channels, out_channels, padding, padding_mode):
+  def __init__(self, in_channels, out_channels, padding='same', padding_mode='reflect'):
     super().__init__()
 
     self.module_list = nn.Sequential(
