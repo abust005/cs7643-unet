@@ -39,8 +39,12 @@ class BraTS2020Dataset(Dataset):
 
         # If mask has multiple channels, convert to single-channel
         if mask.ndim > 2:
-            mask = torch.mean(mask, dim=-1)  # Example: Convert RGB to grayscale
+            for c in range(mask.ndim):
+                mask[:, :, c] *= (c + 1)
 
+            mask = torch.sum(mask, dim=-1, keepdim=False)  # Example: Convert RGB to grayscale
+
+        mask = torch.moveaxis(mask, -1, 0)
         image = torch.moveaxis(image, -1, 0)
 
         return image, mask

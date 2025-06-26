@@ -8,13 +8,13 @@ import torch.nn as nn
 '''
 
 class ConvBlock(nn.Module):
-  def __init__(self, in_channels, out_channels):
+  def __init__(self, in_channels, out_channels, padding, padding_mode):
     super().__init__()
 
     self.module_list = nn.Sequential(
-      nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=3, stride=1),
+      nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=3, padding=padding, padding_mode=padding_mode, stride=1),
       nn.ReLU(),
-      nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=3, stride=1),
+      nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=3, padding=padding, padding_mode=padding_mode, stride=1),
       nn.ReLU(),
     )
   
@@ -22,10 +22,10 @@ class ConvBlock(nn.Module):
     return self.module_list.forward(x)
 
 class DownConv(nn.Module):
-  def __init__(self, in_channels, out_channels):
+  def __init__(self, in_channels, out_channels, padding, padding_mode):
     super().__init__()
 
-    self.conv = ConvBlock(in_channels, out_channels)
+    self.conv = ConvBlock(in_channels, out_channels, padding, padding_mode)
     self.pool = nn.MaxPool2d(2, stride=2)
 
   def forward(self, x):

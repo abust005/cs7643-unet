@@ -3,15 +3,15 @@ from model.unet_blocks import *
 
 class UNet(nn.Module):
   
-  def __init__(self, in_channels=3):
+  def __init__(self, in_channels=3, down_padding = None, down_padding_mode = None):
     super().__init__()
 
     self.module_list = nn.ModuleDict(
       {
-        'down_conv_1' : DownConv(in_channels, 64),
-        'down_conv_2' : DownConv(64, 128),
-        'down_conv_3' : DownConv(128, 256),
-        'down_conv_4' : DownConv(256, 512),
+        'down_conv_1' : DownConv(in_channels, 64, padding=down_padding, padding_mode=down_padding_mode),
+        'down_conv_2' : DownConv(64, 128, padding=down_padding, padding_mode=down_padding_mode),
+        'down_conv_3' : DownConv(128, 256, padding=down_padding, padding_mode=down_padding_mode),
+        'down_conv_4' : DownConv(256, 512, padding=down_padding, padding_mode=down_padding_mode),
         'conv_1' : ConvBlock(512, 1024),
         'up_conv_1' : UpConv(1024),
         'up_conv_2' : UpConv(512),
