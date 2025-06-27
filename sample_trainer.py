@@ -1,0 +1,69 @@
+from model.unet import UNet
+import torch
+from time import time
+from data.dataset import BraTS2020Dataset
+from torch.utils.data import DataLoader, random_split
+
+CUDA = True
+TENSOR_CORES = True
+NUM_EPOCHS = 20
+
+if TENSOR_CORES:
+    # The flag below controls whether to allow TF32 on matmul. This flag defaults to False
+    # in PyTorch 1.12 and later.
+    torch.backends.cuda.matmul.allow_tf32 = True
+
+    # The flag below controls whether to allow TF32 on cuDNN. This flag defaults to True.
+    torch.backends.cudnn.allow_tf32 = True
+
+if __name__ == '__main__':
+
+    generator1 = torch.Generator().manual_seed(42)
+    data = BraTS2020Dataset()
+
+    d = data.__getitem__(0)
+
+    train, test, val = random_split(data, [0.7, 0.1, 0.2], generator1)
+
+    # Split into training and validation sets
+    # train_files, val_files = train_test_split(h5_files, test_size=0.2, random_state=42)
+
+    print(f"Total samples: {len(data)}")
+    print(f"Training samples: {len(train)}")
+    print(f"Validation samples: {len(val)}")
+
+    # Parameters
+    batch_size = 32  # Adjust based on GPU memory
+    train_dataloader = DataLoader(train, batch_size=batch_size, shuffle=True)
+
+    net = UNet(in_channels=4, num_classes=3, padding='same', padding_mode='reflect').to(device='cuda', dtype=torch.float32)
+    optimizer = torch.optim.SGD(net.parameters(), lr=0.005, momentum=0.99)
+
+    softmax_fn = torch.nn.Softmax(dim=1)
+    loss_fn = torch.nn.CrossEntropyLoss()
+
+    size = len(train_dataloader.dataset)
+    for epoch in range(NUM_EPOCHS):
+
+        net.train()
+        print(f'Epoch: {epoch}')
+        for batch, (X, y) in enumerate(train_dataloader):
+
+            X = X.to(device='cuda')
+            y = y.to(device='cuda')
+
+            logits = net(X)
+            pred = softmax_fn(logits)
+            loss = loss_fn(y, pred)
+            loss.backward()
+            optimizer.step()
+            optimizer.zero_grad()
+
+            if batch % 80 == 0:
+                loss, current = loss.item(), batch * batch_size + len(X)
+                print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
+
+    torch.save(net, 'trained_unet.pth')
+
+
+
