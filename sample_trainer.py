@@ -5,7 +5,7 @@ from data.dataset import BraTS2020Dataset
 from torch.utils.data import DataLoader, random_split
 
 TENSOR_CORES = True
-NUM_EPOCHS = 20
+NUM_EPOCHS = 5
 
 if TENSOR_CORES:
     # The flag below controls whether to allow TF32 on matmul. This flag defaults to False
@@ -60,7 +60,7 @@ if __name__ == '__main__':
             optimizer.step()
             optimizer.zero_grad()
 
-            if batch % 80 == 0:
+            if batch % 32 == 0:
                 loss, current = loss.item(), batch * batch_size + len(X)
                 print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
 
