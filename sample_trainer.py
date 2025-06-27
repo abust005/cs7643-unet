@@ -4,7 +4,6 @@ from time import time
 from data.dataset import BraTS2020Dataset
 from torch.utils.data import DataLoader, random_split
 
-CUDA = True
 TENSOR_CORES = True
 NUM_EPOCHS = 20
 
@@ -36,7 +35,9 @@ if __name__ == '__main__':
     batch_size = 32  # Adjust based on GPU memory
     train_dataloader = DataLoader(train, batch_size=batch_size, shuffle=True)
 
-    net = UNet(in_channels=4, num_classes=3, padding='same', padding_mode='reflect').to(device='cuda', dtype=torch.float32)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    net = UNet(in_channels=4, num_classes=3, padding='same', padding_mode='reflect').to(device=device, dtype=torch.float32)
     optimizer = torch.optim.SGD(net.parameters(), lr=0.005, momentum=0.99)
 
     softmax_fn = torch.nn.Softmax(dim=1)
@@ -49,8 +50,8 @@ if __name__ == '__main__':
         print(f'Epoch: {epoch}')
         for batch, (X, y) in enumerate(train_dataloader):
 
-            X = X.to(device='cuda')
-            y = y.to(device='cuda')
+            X = X.to(device=device)
+            y = y.to(device=device)
 
             logits = net(X)
             pred = softmax_fn(logits)
