@@ -44,7 +44,7 @@ if __name__ == '__main__':
     print(f"Validation samples: {len(val)}")
 
     # Parameters
-    batch_size = 8  # Adjust based on GPU memory
+    batch_size = 32  # Adjust based on GPU memory
     train_dataloader = DataLoader(train, batch_size=batch_size, shuffle=True)
     val_dataloader = DataLoader(val, batch_size=batch_size, shuffle=True)
 
