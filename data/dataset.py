@@ -26,7 +26,7 @@ class BraTS2020Dataset(Dataset):
         self.data_dir = kagglehub.dataset_download("awsaf49/brats2020-training-data")
         self.data_dir += '/BraTS2020_training_data/content/data/'
         self.data_files = [f for f in os.listdir(self.data_dir) if f.endswith('.h5')]
-        self.transform = PyTMinMaxScalerVectorized()
+        self.transform = transform
         self.target_transform = target_transform
 
     def __len__(self):
@@ -45,20 +45,17 @@ class BraTS2020Dataset(Dataset):
             image = torch.Tensor(np.array(hf['image']))  # Expected shape: (H, W, 4)
             mask = torch.Tensor(np.array(hf['mask'][:]))    # Expected shape: (H, W) or (H, W, C)
 
-        # # If mask has multiple channels, convert to single-channel
-        # if mask.ndim > 2:
-        #     for c in range(mask.ndim):
-        #         mask[:, :, c] *= (c + 1)
-
-        #     mask = torch.sum(mask, dim=-1, keepdim=False)  # Example: Convert RGB to grayscale
-
         new_mask = torch.empty((mask.shape[0], mask.shape[1], mask.shape[2] + 1))
-        new_mask[:, :, 0:3] = mask
-        new_mask[:, :, 3] = (torch.ones(mask.shape[0], mask.shape[1]) - mask.sum(dim=-1))
+        new_mask[:, :, 0] = (torch.ones(mask.shape[0], mask.shape[1]) - mask.sum(dim=-1))
+        new_mask[:, :, 1:4] = mask
         # mask = torch.cat((mask, (torch.ones(mask.shape[0], mask.shape[1], 1) - mask.sum(dim=-1))), dim=-1)
 
+        image[image < 0] = 0
+
         mask = torch.moveaxis(new_mask, -1, 0)
-        image = self.transform(torch.moveaxis(image, -1, 0))
+        image = torch.moveaxis(image, -1, 0)
+        if self.transform != None:
+            image = self.transform()(image)
 
         return image, mask
 
