@@ -47,15 +47,16 @@ class BraTS2020Dataset(Dataset):
 
         new_mask = torch.empty((mask.shape[0], mask.shape[1], mask.shape[2] + 1))
         new_mask[:, :, 0] = (torch.ones(mask.shape[0], mask.shape[1]) - mask.sum(dim=-1))
-        new_mask[:, :, 1:4] = mask
-        # mask = torch.cat((mask, (torch.ones(mask.shape[0], mask.shape[1], 1) - mask.sum(dim=-1))), dim=-1)
+        new_mask[:, :, 1:mask.shape[2]+1] = mask
 
         image[image < 0] = 0
 
-        mask = torch.moveaxis(new_mask, -1, 0)
-        image = torch.moveaxis(image, -1, 0)
+        split_mask = torch.moveaxis(new_mask, -1, 0)
+        image = torch.moveaxis(image, (-1, -2), (0, 1))
         if self.transform != None:
             image = self.transform()(image)
 
-        return image, mask
+        single_mask = torch.einsum('kij, k->ij', split_mask, torch.arange(split_mask.shape[0], dtype=split_mask.dtype))
+
+        return image, split_mask, single_mask
 
