@@ -63,15 +63,15 @@ if __name__ == '__main__':
 
         net.train()
         print(f'Epoch: {epoch}')
-        for batch, (X, y, m) in enumerate(train_dataloader):
+        for batch, (X, y, _) in enumerate(train_dataloader):
 
             X = X.to(device=device)
             X = scaler_fn(X)
             y = y.to(device=device)
 
             logits = net(reflection_pad_fn(X))
-            # pred = softmax_fn(logits)
-            loss = loss_fn(logits, y)
+            pred = softmax_fn(logits)
+            loss = loss_fn(y, pred)
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
