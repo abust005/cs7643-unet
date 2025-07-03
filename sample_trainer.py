@@ -10,6 +10,7 @@ TENSOR_CORES = True
 NUM_EPOCHS = 5
 
 
+
 def dice_coefficient(prediction, target, epsilon=1e-07):
     prediction_copy = prediction.clone()
 
@@ -51,7 +52,11 @@ if __name__ == "__main__":
     val_dataloader = DataLoader(val, batch_size=batch_size, shuffle=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    net = UNet(in_channels=4, num_classes=3, padding=0, padding_mode="reflect").to(
+        device=device, dtype=torch.float32
+    )
     net = UNet(in_channels=4, num_classes=3, padding=0, padding_mode="reflect").to(
         device=device, dtype=torch.float32
     )
