@@ -86,7 +86,7 @@ if __name__ == '__main__':
 
             avg_dice_score = 0
 
-            for batch, (X, y) in enumerate(val_dataloader):
+            for batch, (X, y, _) in enumerate(val_dataloader):
                 X = X.to(device=device)
                 y = X.to(device=device)
 
