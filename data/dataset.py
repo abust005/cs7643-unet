@@ -21,7 +21,7 @@ class PyTMinMaxScalerVectorized(object):
 
 
 class BraTS2020Dataset(Dataset):
-    def __init__(self, transform=None, target_transform=None):
+    def __init__(self, transform=None, normalizer=None):
 
         # self.data_dir = kagglehub.dataset_download("awsaf49/brats2020-training-data")
         self.data_dir = kagglehub.dataset_download("adrielbustamante/brats2020-training-set-tiff")
@@ -29,7 +29,7 @@ class BraTS2020Dataset(Dataset):
         self.x = [f for f in os.listdir(f'{self.data_dir}/x') if f.endswith(".tif")]
         self.y = [f for f in os.listdir(f'{self.data_dir}/y') if f.endswith(".tif")]
         self.transform = transform
-        self.target_transform = target_transform
+        self.normalizer = normalizer
 
     def __len__(self):
         return len(self.x)
@@ -56,11 +56,20 @@ class BraTS2020Dataset(Dataset):
             v = int(v)
             split_mask[v] = torch.where(single_mask == v, 1, 0).to(torch.uint8)
 
+        single_mask = torch.moveaxis(single_mask, -1, 0)
         split_mask = torch.moveaxis(split_mask, -1, 1)
         image = torch.moveaxis(image, (-1, -2), (0, 1))
 
+        if self.normalizer != None:
+            image = self.normalizer(image)
+
         if self.transform != None:
+            state = torch.get_rng_state()
             image = self.transform(image)
+            torch.set_rng_state(state)
+            split_mask = self.transform(split_mask)
+            torch.set_rng_state(state)
+            single_mask = self.transform(single_mask.unsqueeze(dim=0))
 
         # single_mask = torch.einsum(
         #     "kij, k->ij",

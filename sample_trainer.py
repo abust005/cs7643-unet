@@ -3,10 +3,9 @@ import torch
 from time import time
 from data.dataset import BraTS2020Dataset, PyTMinMaxScalerVectorized
 from torch.utils.data import DataLoader, random_split
-from scipy.ndimage.morphology import distance_transform_edt
-import numpy as np
 import torchvision.transforms as transforms
 from tqdm import tqdm
+from torchvision.transforms import v2, Compose
 
 TENSOR_CORES = True
 NUM_EPOCHS = 5
@@ -54,19 +53,26 @@ if __name__ == "__main__":
     generator1 = torch.Generator().manual_seed(42)
     data = BraTS2020Dataset()
 
-    # full_loader = DataLoader(data, batch_size=BATCH_SIZE)
-    # mean, std = get_mean_std(full_loader)
-
-    # print(mean, std)
-
-    # data = BraTS2020Dataset(transform=transforms.Normalize(mean, std))
     train, test, val = random_split(data, [0.7, 0.2, 0.1], generator1)
+
+    train_dataloader = DataLoader(train, batch_size=BATCH_SIZE, shuffle=True)
+    mean, std = get_mean_std(train_dataloader)
+
+    norm_transform = transforms.Normalize(mean, std)
 
     print(f"Total samples: {len(data)}")
     print(f"Training samples: {len(train)}")
     print(f"Validation samples: {len(val)}")
 
     # Parameters
+    transform = Compose([v2.RandomRotation(45),
+                         v2.RandomHorizontalFlip(0.15),
+                         v2.RandomVerticalFlip(0.15),
+                         v2.ElasticTransform()])
+    
+    data = BraTS2020Dataset(transform=transform, normalizer=norm_transform)
+    train, test, val = random_split(data, [0.7, 0.2, 0.1], generator1)
+
     train_dataloader = DataLoader(train, batch_size=BATCH_SIZE, shuffle=True)
     val_dataloader = DataLoader(val, batch_size=BATCH_SIZE, shuffle=True)
 
