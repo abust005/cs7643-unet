@@ -6,10 +6,11 @@ from torch.utils.data import DataLoader, random_split
 from scipy.ndimage.morphology import distance_transform_edt
 import numpy as np
 import torchvision.transforms as transforms
+from tqdm import tqdm
 
 TENSOR_CORES = True
 NUM_EPOCHS = 5
-BATCH_SIZE= 32  # Adjust based on GPU memory
+BATCH_SIZE= 8  # Adjust based on GPU memory
 
 def dice_coefficient(prediction, target, epsilon=1e-07):
     prediction_copy = prediction.clone()
@@ -26,16 +27,16 @@ def dice_coefficient(prediction, target, epsilon=1e-07):
 def get_mean_std(loader):
     # Compute the mean and standard deviation of all pixels in the dataset
     num_pixels = 0
-    mean = 0.0
-    std = 0.0
-    for images, _ in loader:
+    mean = torch.zeros(4)
+    std = torch.zeros(4)
+    for images, _, _ in tqdm(loader, desc='Computing statisics'):
         batch_size, num_channels, height, width = images.shape
         num_pixels += batch_size * height * width
-        mean += images.mean(axis=(0, 2, 3)).sum()
-        std += images.std(axis=(0, 2, 3)).sum()
+        mean += images.mean(dim=(0, 2, 3))
+        std += images.std(dim=(0, 2, 3))
 
-    mean /= num_pixels
-    std /= num_pixels
+    mean /= len(loader)
+    std /= len(loader)
 
     return mean, std
 
@@ -53,10 +54,12 @@ if __name__ == "__main__":
     generator1 = torch.Generator().manual_seed(42)
     data = BraTS2020Dataset()
 
-    full_loader = DataLoader(data, batch_size=BATCH_SIZE)
-    mean, std = get_mean_std(full_loader)
+    # full_loader = DataLoader(data, batch_size=BATCH_SIZE)
+    # mean, std = get_mean_std(full_loader)
 
-    data = BraTS2020Dataset(transform=transforms.Normalize(mean, std))
+    # print(mean, std)
+
+    # data = BraTS2020Dataset(transform=transforms.Normalize(mean, std))
     train, test, val = random_split(data, [0.7, 0.2, 0.1], generator1)
 
     print(f"Total samples: {len(data)}")
@@ -76,7 +79,7 @@ if __name__ == "__main__":
     net = UNet(in_channels=4, num_classes=3, padding=0, padding_mode="reflect").to(
         device=device, dtype=torch.float32
     )
-    optimizer = torch.optim.SGD(net.parameters(), lr=0.005, momentum=0.99)
+    optimizer = torch.optim.Adam(net.parameters(), lr=0.005)# momentum=0.99)
 
     softmax_fn = torch.nn.Softmax(dim=1)
     loss_fn = torch.nn.CrossEntropyLoss()
@@ -89,12 +92,12 @@ if __name__ == "__main__":
         print(f"Epoch: {epoch}")
         for batch, (X, y, _) in enumerate(train_dataloader):
 
-            X = X.to(device=device)
-            y = y.to(device=device)
+            X = X.to(device=device, dtype=torch.float32)
+            y = y.to(device=device, dtype=torch.float32)
 
             logits = net(reflection_pad_fn(X))
-            pred = softmax_fn(logits)
-            loss = loss_fn(y, pred)
+            # pred = softmax_fn(logits)
+            loss = loss_fn(logits, y)
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
