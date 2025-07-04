@@ -1,11 +1,14 @@
 from model.unet import UNet
 import torch
 from time import time
-from data.dataset import BraTS2020Dataset
+from data.dataset import BraTS2020Dataset, PyTMinMaxScalerVectorized
 from torch.utils.data import DataLoader, random_split
+from scipy.ndimage.morphology import distance_transform_edt
+import numpy as np
 
 TENSOR_CORES = True
 NUM_EPOCHS = 5
+
 
 
 def dice_coefficient(prediction, target, epsilon=1e-07):
@@ -34,8 +37,6 @@ if __name__ == "__main__":
     generator1 = torch.Generator().manual_seed(42)
     data = BraTS2020Dataset()
 
-    d = data.__getitem__(0)
-
     train, test, val = random_split(data, [0.7, 0.2, 0.1], generator1)
 
     # Split into training and validation sets
@@ -51,7 +52,11 @@ if __name__ == "__main__":
     val_dataloader = DataLoader(val, batch_size=batch_size, shuffle=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    net = UNet(in_channels=4, num_classes=3, padding=0, padding_mode="reflect").to(
+        device=device, dtype=torch.float32
+    )
     net = UNet(in_channels=4, num_classes=3, padding=0, padding_mode="reflect").to(
         device=device, dtype=torch.float32
     )
@@ -60,15 +65,17 @@ if __name__ == "__main__":
     softmax_fn = torch.nn.Softmax(dim=1)
     loss_fn = torch.nn.CrossEntropyLoss()
     reflection_pad_fn = torch.nn.ReflectionPad2d(68)
+    scaler_fn = PyTMinMaxScalerVectorized()
 
     size = len(train_dataloader.dataset)
     for epoch in range(NUM_EPOCHS):
 
         net.train()
         print(f"Epoch: {epoch}")
-        for batch, (X, y) in enumerate(train_dataloader):
+        for batch, (X, y, _) in enumerate(train_dataloader):
 
             X = X.to(device=device)
+            X = scaler_fn(X)
             y = y.to(device=device)
 
             logits = net(reflection_pad_fn(X))
@@ -88,7 +95,7 @@ if __name__ == "__main__":
 
             avg_dice_score = 0
 
-            for batch, (X, y) in enumerate(val_dataloader):
+            for batch, (X, y, _) in enumerate(val_dataloader):
                 X = X.to(device=device)
                 y = X.to(device=device)
 
