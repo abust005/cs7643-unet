@@ -44,23 +44,23 @@ class BraTS2020Dataset(Dataset):
         #         np.array(hf["mask"][:])
         #     )  # Expected shape: (H, W) or (H, W, C)
 
-        image = torch.Tensor(tif.imread(img_path))
+        image = torch.Tensor(tif.imread(img_path)) / 65535
         single_mask = torch.Tensor(tif.imread(mask_path))
+        single_mask = single_mask.to( dtype=torch.uint8)
+        single_mask[single_mask > 2] = 3
 
-        split_mask = torch.empty((4, single_mask.shape[0], single_mask.shape[1]))
+        split_mask = torch.zeros((4, single_mask.shape[0], single_mask.shape[1]))
 
-        for i, v in enumerate(np.unique(single_mask)):
-        
-            split_mask[i] = (single_mask == v).to(torch.uint8)
+        for v in np.unique(single_mask):
+            
+            v = int(v)
+            split_mask[v] = torch.where(single_mask == v, 1, 0).to(torch.uint8)
 
-        # new_mask[:, :, 0] = torch.ones(mask.shape[0], mask.shape[1]) - mask.sum(dim=-1)
-        # new_mask[:, :, 1 : mask.shape[2] + 1] = mask
-
-        # split_mask = torch.moveaxis(split_mask, -1, 0)
+        split_mask = torch.moveaxis(split_mask, -1, 1)
         image = torch.moveaxis(image, (-1, -2), (0, 1))
 
         if self.transform != None:
-            image = self.transform()(image)
+            image = self.transform(image)
 
         # single_mask = torch.einsum(
         #     "kij, k->ij",
