@@ -67,4 +67,9 @@ class BraTS2020Dataset(Dataset):
             torch.set_rng_state(state)
             single_mask = self.transform(single_mask.unsqueeze(dim=0))
 
+            split_mask[0, :, :] = torch.where(single_mask < 1, 1, 0)
+
+        # val, idxs = split_mask.max(dim=0)
+        # split_mask = torch.where(split_mask[idxs] < 1, 1, split_mask[idxs])
+
         return image, split_mask, single_mask
