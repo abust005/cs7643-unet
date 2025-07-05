@@ -6,6 +6,7 @@ from torch.utils.data import DataLoader, random_split
 import torchvision.transforms as transforms
 from tqdm import tqdm
 from torchvision.transforms import v2, Compose
+from losses.focal_loss import FocalLoss, reweight
 
 TENSOR_CORES = True
 NUM_EPOCHS = 5
@@ -58,8 +59,10 @@ if __name__ == "__main__":
     train, test, val = random_split(data, [0.7, 0.2, 0.1], generator1)
 
     train_dataloader = DataLoader(train, batch_size=BATCH_SIZE, shuffle=True)
-    mean, std = get_mean_std(train_dataloader)
+    # mean, std = get_mean_std(train_dataloader)
 
+    mean = torch.tensor([0.0017, 0.0019, 0.0020, 0.0011])
+    std = torch.tensor([0.0056, 0.0067, 0.0068, 0.0042])
     norm_transform = transforms.Normalize(mean, std)
 
     print(f"Total samples: {len(data)}")
@@ -94,8 +97,11 @@ if __name__ == "__main__":
     optimizer = torch.optim.Adam(net.parameters(), lr=0.005)  # momentum=0.99)
 
     softmax_fn = torch.nn.Softmax(dim=1)
-    loss_fn = torch.nn.CrossEntropyLoss()
+    # loss_fn = torch.nn.CrossEntropyLoss()
+    weights = reweight(torch.tensor([3257699276, 8161996, 21302318, 7268410]))
+    loss_fn = FocalLoss(weights, gamma=1)
     reflection_pad_fn = torch.nn.ReflectionPad2d(68)
+    
 
     size = len(train_dataloader.dataset)
     for epoch in range(NUM_EPOCHS):
