@@ -9,7 +9,8 @@ from torchvision.transforms import v2, Compose
 
 TENSOR_CORES = True
 NUM_EPOCHS = 5
-BATCH_SIZE= 8  # Adjust based on GPU memory
+BATCH_SIZE = 8  # Adjust based on GPU memory
+
 
 def dice_coefficient(prediction, target, epsilon=1e-07):
     prediction_copy = prediction.clone()
@@ -23,12 +24,13 @@ def dice_coefficient(prediction, target, epsilon=1e-07):
 
     return dice
 
+
 def get_mean_std(loader):
     # Compute the mean and standard deviation of all pixels in the dataset
     num_pixels = 0
     mean = torch.zeros(4)
     std = torch.zeros(4)
-    for images, _, _ in tqdm(loader, desc='Computing statisics'):
+    for images, _, _ in tqdm(loader, desc="Computing statisics"):
         batch_size, num_channels, height, width = images.shape
         num_pixels += batch_size * height * width
         mean += images.mean(dim=(0, 2, 3))
@@ -65,11 +67,15 @@ if __name__ == "__main__":
     print(f"Validation samples: {len(val)}")
 
     # Parameters
-    transform = Compose([v2.RandomRotation(45),
-                         v2.RandomHorizontalFlip(0.15),
-                         v2.RandomVerticalFlip(0.15),
-                         v2.ElasticTransform()])
-    
+    transform = Compose(
+        [
+            v2.RandomRotation(45),
+            v2.RandomHorizontalFlip(0.15),
+            v2.RandomVerticalFlip(0.15),
+            v2.ElasticTransform(),
+        ]
+    )
+
     data = BraTS2020Dataset(transform=transform, normalizer=norm_transform)
     train, test, val = random_split(data, [0.7, 0.2, 0.1], generator1)
 
@@ -85,7 +91,7 @@ if __name__ == "__main__":
     net = UNet(in_channels=4, num_classes=3, padding=0, padding_mode="reflect").to(
         device=device, dtype=torch.float32
     )
-    optimizer = torch.optim.Adam(net.parameters(), lr=0.005)# momentum=0.99)
+    optimizer = torch.optim.Adam(net.parameters(), lr=0.005)  # momentum=0.99)
 
     softmax_fn = torch.nn.Softmax(dim=1)
     loss_fn = torch.nn.CrossEntropyLoss()
