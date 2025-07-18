@@ -126,7 +126,7 @@ if __name__ == "__main__":
 
             for batch, (X, y, _) in enumerate(val_dataloader):
                 X = X.to(device=device)
-                y = X.to(device=device)
+                y = y.to(device=device)
 
                 logits = net(reflection_pad_fn(X))
                 pred = softmax_fn(logits)
