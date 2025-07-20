@@ -39,8 +39,8 @@ class FocalLoss(nn.Module):
         self.weight = weight
         self.device = device
         self.weight = self.weight.to(device=device)
-        self.softmax_fn = torch.nn.Softmax(dim=1)
-        self.ce_fn = torch.nn.CrossEntropyLoss(weight=self.weight)
+        self.softmax_fn = nn.Softmax2d()
+        self.ce_fn = nn.CrossEntropyLoss()
 
     def forward(self, input, target):
         """
@@ -50,10 +50,9 @@ class FocalLoss(nn.Module):
         """
         loss = None
 
-        ce = self.ce_fn(input, target)
+        ce = -self.ce_fn(input, target)
         pt_i = torch.exp(ce)
-
-        loss = torch.pow(1-pt_i, self.gamma) * ce
+        loss = -torch.pow(1-pt_i, self.gamma) * ce
         loss = torch.sum(loss)
 
         return loss
