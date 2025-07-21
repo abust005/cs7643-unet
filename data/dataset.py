@@ -7,6 +7,7 @@ from torch.utils.data import Dataset
 import kagglehub
 import tifffile as tif
 from torchvision.io import decode_image
+import matplotlib.pyplot as plt
 
 class PyTMinMaxScalerVectorized(object):
     """
@@ -40,35 +41,17 @@ class BraTS2020Dataset(Dataset):
         mask_path = f"{self.data_dir}/y/{self.y[idx]}"
 
         image = torch.Tensor(tif.imread(img_path)) / 65535
-        single_mask = torch.Tensor(tif.imread(mask_path))
-        single_mask = single_mask.to(dtype=torch.uint8)
-        single_mask[single_mask > 2] = 3
+        mask = torch.Tensor(tif.imread(mask_path))
+        mask = mask.to(dtype=torch.uint8)
+        mask[mask > 2] = 3
 
-        split_mask = torch.zeros((4, single_mask.shape[0], single_mask.shape[1]))
-
-        for v in np.unique(single_mask):
-
-            v = int(v)
-            split_mask[v] = torch.where(single_mask == v, 1, 0).to(torch.uint8)
-
-        # single_mask = torch.moveaxis(single_mask, -1, 0)
-        split_mask = torch.moveaxis(split_mask, -1, 1)
+        mask = torch.moveaxis(mask, -1, 0)
         image = torch.moveaxis(image, (-1, -2), (0, 1))
 
         if self.normalizer != None:
             image = self.normalizer(image)
 
         if self.transform != None:
-            state = torch.get_rng_state()
-            image = self.transform(image)
-            torch.set_rng_state(state)
-            split_mask = self.transform(split_mask)
-            torch.set_rng_state(state)
-            single_mask = self.transform(single_mask.unsqueeze(dim=0))
+            image, mask = self.transform(image, mask)
 
-            split_mask[0, :, :] = torch.where(single_mask < 1, 1, 0)
-
-        # val, idxs = split_mask.max(dim=0)
-        # split_mask = torch.where(split_mask[idxs] < 1, 1, split_mask[idxs])
-
-        return image, split_mask, single_mask.squeeze(dim=0)
+        return image, mask
