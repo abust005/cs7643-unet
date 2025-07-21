@@ -51,7 +51,7 @@ class BraTS2020Dataset(Dataset):
             v = int(v)
             split_mask[v] = torch.where(single_mask == v, 1, 0).to(torch.uint8)
 
-        single_mask = torch.moveaxis(single_mask, -1, 0)
+        # single_mask = torch.moveaxis(single_mask, -1, 0)
         split_mask = torch.moveaxis(split_mask, -1, 1)
         image = torch.moveaxis(image, (-1, -2), (0, 1))
 
