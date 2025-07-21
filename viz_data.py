@@ -21,9 +21,10 @@ if __name__ == "__main__":
                          v2.RandomHorizontalFlip(0.15),
                          v2.RandomVerticalFlip(0.15),
                          v2.ElasticTransform()])
+    clean_data = True
     
     training_dataloader = DataLoader(
-        BraTS2020Dataset(transform=transform), batch_size=batch_size, shuffle=False
+        BraTS2020Dataset(transform=transform, clean_data=clean_data), batch_size=batch_size, shuffle=False
     )
     # training_dataloader = DataLoader(BraTS2020Dataset(transform=PyTMinMaxScalerVectorized), batch_size=batch_size, shuffle=False)
 

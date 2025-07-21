@@ -10,6 +10,7 @@ from torchvision.transforms import v2, Compose
 TENSOR_CORES = True
 NUM_EPOCHS = 5
 BATCH_SIZE = 8  # Adjust based on GPU memory
+CLEAN_DATA = True
 
 
 def dice_coefficient(prediction, target, epsilon=1e-07):
@@ -53,7 +54,7 @@ if TENSOR_CORES:
 if __name__ == "__main__":
 
     generator1 = torch.Generator().manual_seed(42)
-    data = BraTS2020Dataset()
+    data = BraTS2020Dataset(clean_data=CLEAN_DATA)
 
     train, test, val = random_split(data, [0.7, 0.2, 0.1], generator1)
 
@@ -76,7 +77,7 @@ if __name__ == "__main__":
         ]
     )
 
-    data = BraTS2020Dataset(transform=transform, normalizer=norm_transform)
+    data = BraTS2020Dataset(transform=transform, normalizer=norm_transform, clean_data=CLEAN_DATA)
     train, test, val = random_split(data, [0.7, 0.2, 0.1], generator1)
 
     train_dataloader = DataLoader(train, batch_size=BATCH_SIZE, shuffle=True)
