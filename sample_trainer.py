@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 TENSOR_CORES = True
 NUM_EPOCHS = 1
-BATCH_SIZE = 1  # Adjust based on GPU memory
+BATCH_SIZE = 8  # Adjust based on GPU memory
 
 def debug(mask):
     fig, axs = plt.subplots(2, 2)
@@ -149,7 +149,8 @@ if __name__ == "__main__":
                 y = y.to(device=device)
 
                 logits = net(reflection_pad_fn(X))
-                pred = softmax_fn(logits)
+                # pred = softmax_fn(logits).long()
+                pred = torch.argmax(logits, dim=1)
 
                 avg_dice_score += dice_coefficient(pred, y)
 
