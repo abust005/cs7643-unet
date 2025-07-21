@@ -42,7 +42,7 @@ class BraTS2020Dataset(Dataset):
 
         image = torch.Tensor(tif.imread(img_path)) / 65535
         mask = torch.Tensor(tif.imread(mask_path))
-        mask = mask.to(dtype=torch.uint8)
+        mask = mask.to(dtype=torch.long)
         mask[mask > 2] = 3
 
         mask = torch.moveaxis(mask, -1, 0)

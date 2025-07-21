@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 TENSOR_CORES = True
 NUM_EPOCHS = 1
-BATCH_SIZE = 32  # Adjust based on GPU memory
+BATCH_SIZE = 1  # Adjust based on GPU memory
 
 def debug(mask):
     fig, axs = plt.subplots(2, 2)
@@ -93,7 +93,7 @@ if __name__ == "__main__":
         ]
     )
 
-    data = BraTS2020Dataset(transform=transform, normalizer=norm_transform)
+    data = BraTS2020Dataset(normalizer=norm_transform)
     train, test, val = random_split(data, [0.7, 0.2, 0.1], generator1)
 
     train_dataloader = DataLoader(train, batch_size=BATCH_SIZE, shuffle=True, pin_memory=True, num_workers=4)
@@ -120,15 +120,14 @@ if __name__ == "__main__":
 
         net.train()
         print(f"Epoch: {epoch}")
-        for batch, (X, y, single_y) in enumerate(train_dataloader):
+        for batch, (X, y) in enumerate(train_dataloader):
 
             X = X.to(device=device, dtype=torch.float32)
-            y = y.to(device=device, dtype=torch.float32)
-            single_y = single_y.to(device=device, dtype=torch.long)
+            y = y.to(device=device)
 
             logits = net(reflection_pad_fn(X))
             pred = torch.argmax(logits, dim=1).float()
-            loss = ce_fn(logits, single_y)
+            loss = ce_fn(logits, y)
 
             loss.backward()
             # torch.nn.utils.clip_grad_norm_(net.parameters(), max_norm=.1)
@@ -145,7 +144,7 @@ if __name__ == "__main__":
 
             avg_dice_score = 0
 
-            for batch, (X, y, _) in enumerate(val_dataloader):
+            for batch, (X, y) in enumerate(val_dataloader):
                 X = X.to(device=device)
                 y = y.to(device=device)
 
