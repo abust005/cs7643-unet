@@ -22,9 +22,10 @@ if __name__ == "__main__":
                          v2.RandomVerticalFlip(0.15),
                          v2.ElasticTransform()])
     clean_data = True
+    MIN_ACTIVE_PIXELS = 0.2
     
     training_dataloader = DataLoader(
-        BraTS2020Dataset(transform=transform, clean_data=clean_data), batch_size=batch_size, shuffle=False
+        BraTS2020Dataset(transform=transform, clean_data=clean_data, min_active_pixels=MIN_ACTIVE_PIXELS), batch_size=batch_size, shuffle=False
     )
     # training_dataloader = DataLoader(BraTS2020Dataset(transform=PyTMinMaxScalerVectorized), batch_size=batch_size, shuffle=False)
 
