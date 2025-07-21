@@ -3,12 +3,10 @@ import torch
 from time import time
 from data.dataset import BraTS2020Dataset, PyTMinMaxScalerVectorized
 from torch.utils.data import DataLoader, random_split
-import torchvision.transforms as transforms
+import torchvision.transforms.v2 as v2
 from tqdm import tqdm
-from torchvision.transforms import v2, Compose, ToTensor
 from losses.focal_loss import FocalLoss, reweight
 import matplotlib.pyplot as plt
-from torchvision.datasets import VOCSegmentation
 
 TENSOR_CORES = True
 NUM_EPOCHS = 1
@@ -79,14 +77,14 @@ if __name__ == "__main__":
 
     mean = torch.tensor([0.0017, 0.0019, 0.0020, 0.0011])
     std = torch.tensor([0.0056, 0.0067, 0.0068, 0.0042])
-    norm_transform = transforms.Normalize(mean, std)
+    norm_transform = v2.Normalize(mean, std)
 
     print(f"Total samples: {len(data)}")
     print(f"Training samples: {len(train)}")
     print(f"Validation samples: {len(val)}")
 
     # Parameters
-    transform = Compose(
+    transform = v2.Compose(
         [
             v2.RandomRotation(45),
             v2.RandomHorizontalFlip(0.15),
@@ -96,11 +94,7 @@ if __name__ == "__main__":
     )
 
     data = BraTS2020Dataset(transform=transform, normalizer=norm_transform)
-    # data = BraTS2020Dataset(transform=transform)
     train, test, val = random_split(data, [0.7, 0.2, 0.1], generator1)
-
-    # train_dataloader = DataLoader(VOCSegmentation("./data", download=True, transform=ToTensor()), batch_size=BATCH_SIZE, shuffle=True, pin_memory=True, num_workers=4)
-    # val_dataloader = DataLoader(VOCSegmentation("./data", image_set="val",download=True, transform=ToTensor()), batch_size=BATCH_SIZE, shuffle=False)
 
     train_dataloader = DataLoader(train, batch_size=BATCH_SIZE, shuffle=True, pin_memory=True, num_workers=4)
     val_dataloader = DataLoader(val, batch_size=BATCH_SIZE, shuffle=False)
@@ -111,11 +105,6 @@ if __name__ == "__main__":
     net = UNet(in_channels=4, num_classes=3, padding=0, padding_mode="reflect").to(
         device=device, dtype=torch.float32
     )
-
-    # net = UNet(in_channels=4, num_classes=3, padding=0, padding_mode="reflect").to(
-    #     device=device, dtype=torch.float32
-    # )
-    # optimizer = torch.optim.Adam(net.parameters(), lr=0.001)  # momentum=0.99)
 
     optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.99)
 
@@ -139,7 +128,6 @@ if __name__ == "__main__":
 
             logits = net(reflection_pad_fn(X))
             pred = torch.argmax(logits, dim=1).float()
-            # loss = loss_fn(logits, y)
             loss = ce_fn(logits, single_y)
 
             loss.backward()
