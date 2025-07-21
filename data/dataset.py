@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import Dataset
 import kagglehub
 import tifffile as tif
-
+from torchvision.io import decode_image
 
 class PyTMinMaxScalerVectorized(object):
     """
@@ -19,7 +19,6 @@ class PyTMinMaxScalerVectorized(object):
         scale = 1.0 / dist
         tensor.mul_(scale).sub_(tensor.min(dim=1, keepdim=True)[0])
         return tensor
-
 
 class BraTS2020Dataset(Dataset):
     def __init__(self, transform=None, normalizer=None):
@@ -72,4 +71,4 @@ class BraTS2020Dataset(Dataset):
         # val, idxs = split_mask.max(dim=0)
         # split_mask = torch.where(split_mask[idxs] < 1, 1, split_mask[idxs])
 
-        return image, split_mask, single_mask
+        return image, split_mask, single_mask.squeeze(dim=0)

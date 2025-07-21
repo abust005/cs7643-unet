@@ -5,12 +5,28 @@ from data.dataset import BraTS2020Dataset, PyTMinMaxScalerVectorized
 from torch.utils.data import DataLoader, random_split
 import torchvision.transforms as transforms
 from tqdm import tqdm
-from torchvision.transforms import v2, Compose
+from torchvision.transforms import v2, Compose, ToTensor
 from losses.focal_loss import FocalLoss, reweight
+import matplotlib.pyplot as plt
+from torchvision.datasets import VOCSegmentation
 
 TENSOR_CORES = True
-NUM_EPOCHS = 5
-BATCH_SIZE = 8  # Adjust based on GPU memory
+NUM_EPOCHS = 1
+BATCH_SIZE = 32  # Adjust based on GPU memory
+
+def debug(mask):
+    fig, axs = plt.subplots(2, 2)
+
+    axs[0, 0].imshow(mask[0, 0].cpu().numpy())
+    axs[0, 1].imshow(mask[0, 1].cpu().numpy())
+    axs[1, 0].imshow(mask[0, 2].cpu().numpy())
+    axs[1, 1].imshow(mask[0, 3].cpu().numpy())
+
+    plt.tight_layout()
+
+    fig.show()
+    plt.waitforbuttonpress()
+    plt.close(fig)
 
 
 def dice_coefficient(prediction, target, epsilon=1e-07):
@@ -53,7 +69,7 @@ if TENSOR_CORES:
 
 if __name__ == "__main__":
 
-    generator1 = torch.Generator().manual_seed(42)
+    generator1 = torch.Generator().manual_seed(80)
     data = BraTS2020Dataset()
 
     train, test, val = random_split(data, [0.7, 0.2, 0.1], generator1)
@@ -80,10 +96,14 @@ if __name__ == "__main__":
     )
 
     data = BraTS2020Dataset(transform=transform, normalizer=norm_transform)
+    # data = BraTS2020Dataset(transform=transform)
     train, test, val = random_split(data, [0.7, 0.2, 0.1], generator1)
 
-    train_dataloader = DataLoader(train, batch_size=BATCH_SIZE, shuffle=True)
-    val_dataloader = DataLoader(val, batch_size=BATCH_SIZE, shuffle=True)
+    # train_dataloader = DataLoader(VOCSegmentation("./data", download=True, transform=ToTensor()), batch_size=BATCH_SIZE, shuffle=True, pin_memory=True, num_workers=4)
+    # val_dataloader = DataLoader(VOCSegmentation("./data", image_set="val",download=True, transform=ToTensor()), batch_size=BATCH_SIZE, shuffle=False)
+
+    train_dataloader = DataLoader(train, batch_size=BATCH_SIZE, shuffle=True, pin_memory=True, num_workers=4)
+    val_dataloader = DataLoader(val, batch_size=BATCH_SIZE, shuffle=False)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -91,15 +111,18 @@ if __name__ == "__main__":
     net = UNet(in_channels=4, num_classes=3, padding=0, padding_mode="reflect").to(
         device=device, dtype=torch.float32
     )
-    net = UNet(in_channels=4, num_classes=3, padding=0, padding_mode="reflect").to(
-        device=device, dtype=torch.float32
-    )
-    optimizer = torch.optim.Adam(net.parameters(), lr=0.005)  # momentum=0.99)
+
+    # net = UNet(in_channels=4, num_classes=3, padding=0, padding_mode="reflect").to(
+    #     device=device, dtype=torch.float32
+    # )
+    # optimizer = torch.optim.Adam(net.parameters(), lr=0.001)  # momentum=0.99)
+
+    optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.99)
 
     softmax_fn = torch.nn.Softmax(dim=1)
-    # loss_fn = torch.nn.CrossEntropyLoss()
-    weights = reweight(torch.tensor([3257699276, 8161996, 21302318, 7268410]))
-    loss_fn = FocalLoss(weights, gamma=1)
+    weights = reweight(torch.tensor([3257699276, 8161996, 21302318, 7268410]), beta=0.5)
+    loss_fn = FocalLoss(weights, gamma=1, device=device)
+    ce_fn = torch.nn.CrossEntropyLoss(weight=weights).to(device=device)
     reflection_pad_fn = torch.nn.ReflectionPad2d(68)
     
 
@@ -108,15 +131,19 @@ if __name__ == "__main__":
 
         net.train()
         print(f"Epoch: {epoch}")
-        for batch, (X, y, _) in enumerate(train_dataloader):
+        for batch, (X, y, single_y) in enumerate(train_dataloader):
 
             X = X.to(device=device, dtype=torch.float32)
             y = y.to(device=device, dtype=torch.float32)
+            single_y = single_y.to(device=device, dtype=torch.long)
 
             logits = net(reflection_pad_fn(X))
-            # pred = softmax_fn(logits)
-            loss = loss_fn(logits, y)
+            pred = torch.argmax(logits, dim=1).float()
+            # loss = loss_fn(logits, y)
+            loss = ce_fn(logits, single_y)
+
             loss.backward()
+            # torch.nn.utils.clip_grad_norm_(net.parameters(), max_norm=.1)
             optimizer.step()
             optimizer.zero_grad()
 
@@ -132,7 +159,7 @@ if __name__ == "__main__":
 
             for batch, (X, y, _) in enumerate(val_dataloader):
                 X = X.to(device=device)
-                y = X.to(device=device)
+                y = y.to(device=device)
 
                 logits = net(reflection_pad_fn(X))
                 pred = softmax_fn(logits)
@@ -143,3 +170,5 @@ if __name__ == "__main__":
             print(f"Avg. dice coeff. at epoch {epoch}: {avg_dice_score}")
 
     torch.save(net, "trained_unet.pth")
+
+
