@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 TENSOR_CORES = True
 NUM_EPOCHS = 1
-BATCH_SIZE = 8  # Adjust based on GPU memory
+BATCH_SIZE = 32  # Adjust based on GPU memory
 
 def debug(mask):
     fig, axs = plt.subplots(2, 2)
@@ -114,7 +114,6 @@ if __name__ == "__main__":
     ce_fn = torch.nn.CrossEntropyLoss(weight=weights).to(device=device)
     reflection_pad_fn = torch.nn.ReflectionPad2d(68)
     
-
     size = len(train_dataloader.dataset)
     for epoch in range(NUM_EPOCHS):
 
@@ -150,7 +149,7 @@ if __name__ == "__main__":
 
                 logits = net(reflection_pad_fn(X))
                 # pred = softmax_fn(logits).long()
-                pred = torch.argmax(logits, dim=1)
+                pred = torch.argmax(softmax_fn(logits), dim=1)
 
                 avg_dice_score += dice_coefficient(pred, y)
 
