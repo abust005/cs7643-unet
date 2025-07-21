@@ -3,20 +3,6 @@ import torch.nn as nn
 import numpy as np
 import matplotlib.pyplot as plt
 
-def debug(mask):
-    fig, axs = plt.subplots(2, 2)
-
-    axs[0, 0].imshow(mask[0, 0].cpu().numpy())
-    axs[0, 1].imshow(mask[0, 1].cpu().numpy())
-    axs[1, 0].imshow(mask[0, 2].cpu().numpy())
-    axs[1, 1].imshow(mask[0, 3].cpu().numpy())
-
-    plt.tight_layout()
-
-    fig.show()
-    plt.waitforbuttonpress()
-    plt.close(fig)
-
 def reweight(cls_num_list, beta=0.9999):
     """
     :param cls_num_list: a list containing # of samples of each class
@@ -53,6 +39,5 @@ class FocalLoss(nn.Module):
         ce = -self.ce_fn(input, target)
         pt_i = torch.exp(ce)
         loss = -torch.pow(1-pt_i, self.gamma) * ce
-        # loss = torch.sum(loss) / (loss.shape[0] * loss.shape[1] * loss.shape[2])
 
         return loss

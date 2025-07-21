@@ -20,18 +20,7 @@ if __name__ == "__main__":
         logits = net(x)
 
         pred = torch.argmax(sfmax(logits), dim=1)
-        # pred = torch.round(pred)
-
-        # pred_mask = torch.empty((y.shape[2], y.shape[3]))
-        # y_mask = torch.empty((y.shape[2], y.shape[3]))
-
-        # for c in range(pred.shape[1]):
-        #     pred[:, c] *= c
-        #     y[:, c] *= c
-
-        # pred_mask = torch.sum(pred, dim=1, keepdim=False)
-        # y_mask = torch.sum(y, dim=1, keepdim=False)
-
+        
         for i in range(y.shape[0]):
 
             if not (pred[i].max() > 0):

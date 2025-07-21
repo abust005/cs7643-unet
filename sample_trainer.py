@@ -129,7 +129,6 @@ if __name__ == "__main__":
             loss = ce_fn(logits, y)
 
             loss.backward()
-            # torch.nn.utils.clip_grad_norm_(net.parameters(), max_norm=.1)
             optimizer.step()
             optimizer.zero_grad()
 
@@ -148,7 +147,6 @@ if __name__ == "__main__":
                 y = y.to(device=device)
 
                 logits = net(reflection_pad_fn(X))
-                # pred = softmax_fn(logits).long()
                 pred = torch.argmax(softmax_fn(logits), dim=1)
 
                 avg_dice_score += dice_coefficient(pred, y)
