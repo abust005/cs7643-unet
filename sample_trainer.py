@@ -1,4 +1,5 @@
 from model.unet import UNet
+from model.transunet import TransUNet
 import torch
 from time import time
 from data.dataset import BraTS2020Dataset, PyTMinMaxScalerVectorized
@@ -9,22 +10,12 @@ from losses.focal_loss import FocalLoss, reweight
 import matplotlib.pyplot as plt
 
 TENSOR_CORES = True
-NUM_EPOCHS = 1
-BATCH_SIZE = 32  # Adjust based on GPU memory
+NUM_EPOCHS = 5
+BATCH_SIZE = 8  # Adjust based on GPU memory
+CLEAN_DATA = True
+MIN_ACTIVE_PIXELS = 0.2 # Keeps data with at least the portion of non-zero pixel values
 
-def debug(mask):
-    fig, axs = plt.subplots(2, 2)
-
-    axs[0, 0].imshow(mask[0, 0].cpu().numpy())
-    axs[0, 1].imshow(mask[0, 1].cpu().numpy())
-    axs[1, 0].imshow(mask[0, 2].cpu().numpy())
-    axs[1, 1].imshow(mask[0, 3].cpu().numpy())
-
-    plt.tight_layout()
-
-    fig.show()
-    plt.waitforbuttonpress()
-    plt.close(fig)
+MODEL_TYPE = "TransUNet"  # UNet or TransUNet
 
 
 def dice_coefficient(prediction, target, epsilon=1e-07):
@@ -67,8 +58,8 @@ if TENSOR_CORES:
 
 if __name__ == "__main__":
 
-    generator1 = torch.Generator().manual_seed(80)
-    data = BraTS2020Dataset()
+    generator1 = torch.Generator().manual_seed(42)
+    data = BraTS2020Dataset(clean_data=CLEAN_DATA, min_active_pixels=MIN_ACTIVE_PIXELS)
 
     train, test, val = random_split(data, [0.7, 0.2, 0.1], generator1)
 
@@ -93,7 +84,7 @@ if __name__ == "__main__":
         ]
     )
 
-    data = BraTS2020Dataset(normalizer=norm_transform)
+    data = BraTS2020Dataset(normalizer=norm_transform, clean_data=CLEAN_DATA, min_active_pixels=MIN_ACTIVE_PIXELS)
     train, test, val = random_split(data, [0.7, 0.2, 0.1], generator1)
 
     train_dataloader = DataLoader(train, batch_size=BATCH_SIZE, shuffle=True, pin_memory=True, num_workers=4)
@@ -102,18 +93,28 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    net = UNet(in_channels=4, num_classes=3, padding=0, padding_mode="reflect").to(
-        device=device, dtype=torch.float32
-    )
-
-    optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.99)
+    if MODEL_TYPE == 'UNet':
+        net = UNet(in_channels=4, num_classes=3, padding=0, padding_mode="reflect").to(
+            device=device, dtype=torch.float32
+        )
+        net = UNet(in_channels=4, num_classes=3, padding=0, padding_mode="reflect").to(
+            device=device, dtype=torch.float32
+        )
+    elif MODEL_TYPE == 'TransUNet':
+        net = TransUNet(img_size=240, patch_size=2, in_channels=4, num_classes=3, padding=0, padding_mode="reflect", embed_dim=1024, num_blocks=8).to(
+            device=device, dtype=torch.float32
+        )
+    else:
+        raise ValueError(f"Unsupported model_type: {MODEL_TYPE}")
+    optimizer = torch.optim.Adam(net.parameters(), lr=0.005)  # momentum=0.99)
 
     softmax_fn = torch.nn.Softmax(dim=1)
     weights = reweight(torch.tensor([3257699276, 8161996, 21302318, 7268410]), beta=0.5)
     loss_fn = FocalLoss(weights, gamma=1, device=device)
     ce_fn = torch.nn.CrossEntropyLoss(weight=weights).to(device=device)
-    reflection_pad_fn = torch.nn.ReflectionPad2d(68)
-    
+    reflection_pad_68_fn = torch.nn.ReflectionPad2d(68)
+    reflection_pad_1_fn = torch.nn.ReflectionPad2d(1)
+
     size = len(train_dataloader.dataset)
     for epoch in range(NUM_EPOCHS):
 
@@ -124,8 +125,13 @@ if __name__ == "__main__":
             X = X.to(device=device, dtype=torch.float32)
             y = y.to(device=device)
 
-            logits = net(reflection_pad_fn(X))
-            pred = torch.argmax(logits, dim=1).float()
+            if MODEL_TYPE == 'UNet':
+                logits = net(reflection_pad_68_fn(X))
+            elif MODEL_TYPE == 'TransUNet':
+                logits = net(reflection_pad_1_fn(X))
+            # pred = softmax_fn(logits)
+            loss = loss_fn(logits, y)
+            pred = torch.argmax(softmax_fn(logits), dim=1).float()
             loss = ce_fn(logits, y)
 
             loss.backward()
@@ -146,7 +152,10 @@ if __name__ == "__main__":
                 X = X.to(device=device)
                 y = y.to(device=device)
 
-                logits = net(reflection_pad_fn(X))
+                if MODEL_TYPE == 'UNet':
+                    logits = net(reflection_pad_68_fn(X))
+                elif MODEL_TYPE == 'TransUNet':
+                    logits = net(reflection_pad_1_fn(X))
                 pred = torch.argmax(softmax_fn(logits), dim=1)
 
                 avg_dice_score += dice_coefficient(pred, y)
