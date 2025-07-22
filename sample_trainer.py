@@ -1,4 +1,5 @@
 from model.unet import UNet
+from model.transunet import TransUNet
 import torch
 from time import time
 from data.dataset import BraTS2020Dataset, PyTMinMaxScalerVectorized
@@ -13,6 +14,7 @@ BATCH_SIZE = 8  # Adjust based on GPU memory
 CLEAN_DATA = True
 MIN_ACTIVE_PIXELS = 0.2 # Keeps data with at least the portion of non-zero pixel values
 
+MODEL_TYPE = "TransUNet"  # UNet or TransUNet
 
 
 def dice_coefficient(prediction, target, epsilon=1e-07):
@@ -88,17 +90,25 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    net = UNet(in_channels=4, num_classes=3, padding=0, padding_mode="reflect").to(
-        device=device, dtype=torch.float32
-    )
-    net = UNet(in_channels=4, num_classes=3, padding=0, padding_mode="reflect").to(
-        device=device, dtype=torch.float32
-    )
+    if MODEL_TYPE == 'UNet':
+        net = UNet(in_channels=4, num_classes=3, padding=0, padding_mode="reflect").to(
+            device=device, dtype=torch.float32
+        )
+        net = UNet(in_channels=4, num_classes=3, padding=0, padding_mode="reflect").to(
+            device=device, dtype=torch.float32
+        )
+    elif MODEL_TYPE == 'TransUNet':
+        net = TransUNet(img_size=240, patch_size=2, in_channels=4, num_classes=3, padding=0, padding_mode="reflect", embed_dim=1024, num_blocks=8).to(
+            device=device, dtype=torch.float32
+        )
+    else:
+        raise ValueError(f"Unsupported model_type: {MODEL_TYPE}")
     optimizer = torch.optim.Adam(net.parameters(), lr=0.005)  # momentum=0.99)
 
     softmax_fn = torch.nn.Softmax(dim=1)
     loss_fn = torch.nn.CrossEntropyLoss()
-    reflection_pad_fn = torch.nn.ReflectionPad2d(68)
+    reflection_pad_68_fn = torch.nn.ReflectionPad2d(68)
+    reflection_pad_1_fn = torch.nn.ReflectionPad2d(1)
 
     size = len(train_dataloader.dataset)
     for epoch in range(NUM_EPOCHS):
@@ -110,7 +120,10 @@ if __name__ == "__main__":
             X = X.to(device=device, dtype=torch.float32)
             y = y.to(device=device, dtype=torch.float32)
 
-            logits = net(reflection_pad_fn(X))
+            if MODEL_TYPE == 'UNet':
+                logits = net(reflection_pad_68_fn(X))
+            elif MODEL_TYPE == 'TransUNet':
+                logits = net(reflection_pad_1_fn(X))
             # pred = softmax_fn(logits)
             loss = loss_fn(logits, y)
             loss.backward()
@@ -131,7 +144,10 @@ if __name__ == "__main__":
                 X = X.to(device=device)
                 y = y.to(device=device)
 
-                logits = net(reflection_pad_fn(X))
+                if MODEL_TYPE == 'UNet':
+                    logits = net(reflection_pad_68_fn(X))
+                elif MODEL_TYPE == 'TransUNet':
+                    logits = net(reflection_pad_1_fn(X))
                 pred = softmax_fn(logits)
 
                 avg_dice_score += dice_coefficient(pred, y)
