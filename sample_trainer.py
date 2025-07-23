@@ -12,11 +12,26 @@ import matplotlib.pyplot as plt
 
 TENSOR_CORES = True
 NUM_EPOCHS = 5
-BATCH_SIZE = 2  # Adjust based on GPU memory
-CLEAN_DATA = False
+BATCH_SIZE = 32  # Adjust based on GPU memory
+CLEAN_DATA = True
 MIN_ACTIVE_PIXELS = 0.2 # Keeps data with at least the portion of non-zero pixel values
 
+LOSS = "CE" # CE, Focal, or
+COMPUTE_WEIGHTS = False
 MODEL_TYPE = "UNet"  # UNet or TransUNet
+
+def dice_coefficient(prediction, target, epsilon=1e-07):
+    prediction_copy = prediction.clone()
+
+    prediction_copy[prediction_copy < 0] = 0
+    prediction_copy[prediction_copy > 0] = 1
+
+    intersection = abs(torch.sum(prediction_copy * target))
+    union = abs(torch.sum(prediction_copy) + torch.sum(target))
+    dice = (2.0 * intersection + epsilon) / (union + epsilon)
+
+    return dice
+
 
 def get_mean_std(loader):
     # Compute the mean and standard deviation of all pixels in the dataset
@@ -45,9 +60,10 @@ if TENSOR_CORES:
 if __name__ == "__main__":
 
     generator1 = torch.Generator().manual_seed(42)
-
     # data = BraTS2020Dataset(clean_data=CLEAN_DATA, min_active_pixels=MIN_ACTIVE_PIXELS)
+
     # train, test, val = random_split(data, [0.7, 0.2, 0.1], generator1)
+
     # train_dataloader = DataLoader(train, batch_size=BATCH_SIZE, shuffle=True)
     # mean, std = get_mean_std(train_dataloader)
 
@@ -72,6 +88,14 @@ if __name__ == "__main__":
     print(f"Training samples: {len(train)}")
     print(f"Validation samples: {len(val)}")
 
+    print(f"Total samples: {len(data)}")
+    print(f"Training samples: {len(train)}")
+    print(f"Validation samples: {len(val)}")
+
+    print(f"Total samples: {len(data)}")
+    print(f"Training samples: {len(train)}")
+    print(f"Validation samples: {len(val)}")
+
     train_dataloader = DataLoader(train, batch_size=BATCH_SIZE, shuffle=True, pin_memory=True, num_workers=6)
     val_dataloader = DataLoader(val, batch_size=BATCH_SIZE, shuffle=False)
 
@@ -82,20 +106,26 @@ if __name__ == "__main__":
         net = UNet(in_channels=4, num_classes=3, padding=0, padding_mode="reflect").to(
             device=device, dtype=torch.float32
         )
+
     elif MODEL_TYPE == 'TransUNet':
         net = TransUNet(img_size=240, patch_size=2, in_channels=4, num_classes=3, padding=0, padding_mode="reflect", embed_dim=1024, num_blocks=8).to(
             device=device, dtype=torch.float32
         )
     else:
         raise ValueError(f"Unsupported model_type: {MODEL_TYPE}")
-    # optimizer = torch.optim.Adam(net.parameters(), lr=0.005)  # momentum=0.99)
-    optimizer = torch.optim.SGD(net.parameters(), lr=0.0001, momentum=0.99)
+    
+    optimizer = torch.optim.Adam(net.parameters(), lr=0.001)  # momentum=0.99)
+
+    weights = None
+    if COMPUTE_WEIGHTS:
+        weights = reweight(torch.tensor([3257699276, 8161996, 21302318, 7268410]), beta=0.5)
+
+    if LOSS == "CE":
+        loss_fn = torch.nn.CrossEntropyLoss(weight=weights).to(device=device)
+    elif LOSS == "Focal":
+        loss_fn = FocalLoss(weight=weights, gamma=1, device=device)
 
     softmax_fn = torch.nn.Softmax(dim=1)
-    weights = reweight(torch.tensor([3257699276, 8161996, 21302318, 7268410]), beta=0.5)
-    # loss_fn = FocalLoss(weights, gamma=1, device=device)
-    # ce_fn = torch.nn.CrossEntropyLoss(weight=weights).to(device=device)
-    loss_fn = DiceLoss(n_classes=4, device=device)
     reflection_pad_68_fn = torch.nn.ReflectionPad2d(68)
     reflection_pad_1_fn = torch.nn.ReflectionPad2d(1)
 
@@ -114,8 +144,7 @@ if __name__ == "__main__":
                 logits = net(reflection_pad_68_fn(X))
             elif MODEL_TYPE == 'TransUNet':
                 logits = net(reflection_pad_1_fn(X))
-            # pred = torch.argmax(softmax_fn(logits), dim=1).float()
-            # loss = ce_fn(logits, y)
+
             loss = loss_fn(logits, y)
 
             loss.backward()
