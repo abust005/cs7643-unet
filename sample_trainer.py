@@ -12,8 +12,8 @@ import matplotlib.pyplot as plt
 
 TENSOR_CORES = True
 NUM_EPOCHS = 5
-BATCH_SIZE = 16  # Adjust based on GPU memory
-CLEAN_DATA = True
+BATCH_SIZE = 2  # Adjust based on GPU memory
+CLEAN_DATA = False
 MIN_ACTIVE_PIXELS = 0.2 # Keeps data with at least the portion of non-zero pixel values
 
 MODEL_TYPE = "UNet"  # UNet or TransUNet
@@ -88,7 +88,8 @@ if __name__ == "__main__":
         )
     else:
         raise ValueError(f"Unsupported model_type: {MODEL_TYPE}")
-    optimizer = torch.optim.Adam(net.parameters(), lr=0.005)  # momentum=0.99)
+    # optimizer = torch.optim.Adam(net.parameters(), lr=0.005)  # momentum=0.99)
+    optimizer = torch.optim.SGD(net.parameters(), lr=0.0001, momentum=0.99)
 
     softmax_fn = torch.nn.Softmax(dim=1)
     weights = reweight(torch.tensor([3257699276, 8161996, 21302318, 7268410]), beta=0.5)

@@ -50,13 +50,13 @@ class DiceLoss(nn.Module):
           union = pred_mask[:,c,:,:].sum(dim=(-2, -1)) + target_mask.sum(dim=(-2, -1))
 
           # add some small offset to avoid div by 0
-          dice = dice + ((2 * intersect + 1e-5) / (union + 1e-5)) 
+          dice = dice + ((2 * intersect) / (union)) 
 
-        loss = dice = 1 - (dice.mean() / self.n_classes)
+        loss = 1 - (dice.mean() / self.n_classes)
 
         if self.log_cosh:
           loss = torch.log(torch.cosh(loss))
-          
+
         return loss
 
     
