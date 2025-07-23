@@ -13,7 +13,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 TENSOR_CORES = True
 NUM_EPOCHS = 5
-BATCH_SIZE = 8  # Adjust based on GPU memory
+BATCH_SIZE = 16  # Adjust based on GPU memory
 CLEAN_DATA = True
 MIN_ACTIVE_PIXELS = 0.2 # Keeps data with at least the portion of non-zero pixel values
 
@@ -21,7 +21,11 @@ LOSS = "Focal" # CE, Focal, or
 COMPUTE_WEIGHTS = True
 MODEL_TYPE = "TransUNet"  # UNet or TransUNet
 
-RUN_DESC = f"{LOSS}_{MODEL_TYPE}"
+# Ex. description: "Cleaned_0.2_WeightedCE_UNet"
+RUN_DESC = f"--{f"Cleaned_{MIN_ACTIVE_PIXELS}" if CLEAN_DATA else "Uncleaned"}_ \
+                {"Weighted" if COMPUTE_WEIGHTS else "Unweighted"} \
+                {LOSS}_ \
+                {MODEL_TYPE}"
 
 def dice_coefficient(prediction, target, epsilon=1e-07):
     prediction_copy = prediction.clone()
@@ -131,7 +135,7 @@ if __name__ == "__main__":
 
     x_tmp, _ = next(iter(train_dataloader))
     x_tmp = x_tmp.to(device=device, dtype=torch.float32)
-    
+
     if MODEL_TYPE == 'UNet':
         x_tmp = reflection_pad_68_fn(x_tmp)
     elif MODEL_TYPE == 'TransUNet':
