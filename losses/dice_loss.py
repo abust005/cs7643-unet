@@ -49,7 +49,7 @@ class DiceLoss(nn.Module):
           intersect = (pred_mask[:,c,:,:] * target_mask).sum(dim=(-2, -1))
           union = pred_mask[:,c,:,:].sum(dim=(-2, -1)) + target_mask.sum(dim=(-2, -1))
 
-          if union.max() == 0:
+          if union.max() <= 1e-7:
              union = union + 1
 
           # add some small offset to avoid div by 0

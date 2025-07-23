@@ -103,6 +103,8 @@ if __name__ == "__main__":
     reflection_pad_68_fn = torch.nn.ReflectionPad2d(68)
     reflection_pad_1_fn = torch.nn.ReflectionPad2d(1)
 
+    upsample_fn = torch.nn.Upsample((370, 370), mode='bilinear')
+
     size = len(train_dataloader.dataset)
     for epoch in range(NUM_EPOCHS):
 
@@ -115,7 +117,7 @@ if __name__ == "__main__":
             y = y.to(device=device)
 
             if MODEL_TYPE == 'UNet':
-                logits = net(reflection_pad_68_fn(X))
+                logits = net(upsample_fn(X))
             elif MODEL_TYPE == 'TransUNet':
                 logits = net(reflection_pad_1_fn(X))
 
@@ -140,7 +142,7 @@ if __name__ == "__main__":
                 y = y.to(device=device)
 
                 if MODEL_TYPE == 'UNet':
-                    logits = net(reflection_pad_68_fn(X))
+                    logits = net(upsample_fn(X))
                 elif MODEL_TYPE == 'TransUNet':
                     logits = net(reflection_pad_1_fn(X))
 
