@@ -9,15 +9,23 @@ from tqdm import tqdm
 from losses.focal_loss import FocalLoss, reweight
 import matplotlib.pyplot as plt
 
+from torch.utils.tensorboard import SummaryWriter
+
 TENSOR_CORES = True
 NUM_EPOCHS = 5
-BATCH_SIZE = 32  # Adjust based on GPU memory
+BATCH_SIZE = 16  # Adjust based on GPU memory
 CLEAN_DATA = True
 MIN_ACTIVE_PIXELS = 0.2 # Keeps data with at least the portion of non-zero pixel values
 
-LOSS = "CE" # CE, Focal, or
-COMPUTE_WEIGHTS = False
-MODEL_TYPE = "UNet"  # UNet or TransUNet
+LOSS = "Focal" # CE, Focal, or
+COMPUTE_WEIGHTS = True
+MODEL_TYPE = "TransUNet"  # UNet or TransUNet
+
+# Ex. description: "Cleaned_0.2_WeightedCE_UNet"
+RUN_DESC = f"--{f"Cleaned_{MIN_ACTIVE_PIXELS}" if CLEAN_DATA else "Uncleaned"}_ \
+                {"Weighted" if COMPUTE_WEIGHTS else "Unweighted"} \
+                {LOSS}_ \
+                {MODEL_TYPE}"
 
 def dice_coefficient(prediction, target, epsilon=1e-07):
     prediction_copy = prediction.clone()
@@ -50,6 +58,10 @@ def get_mean_std(loader):
 
 
 if TENSOR_CORES:
+
+    writer = SummaryWriter(comment=RUN_DESC)
+
+
     # The flag below controls whether to allow TF32 on matmul. This flag defaults to False
     # in PyTorch 1.12 and later.
     torch.backends.cuda.matmul.allow_tf32 = True
@@ -121,11 +133,26 @@ if __name__ == "__main__":
     reflection_pad_68_fn = torch.nn.ReflectionPad2d(68)
     reflection_pad_1_fn = torch.nn.ReflectionPad2d(1)
 
+    x_tmp, _ = next(iter(train_dataloader))
+    x_tmp = x_tmp.to(device=device, dtype=torch.float32)
+
+    if MODEL_TYPE == 'UNet':
+        x_tmp = reflection_pad_68_fn(x_tmp)
+    elif MODEL_TYPE == 'TransUNet':
+        x_tmp = reflection_pad_1_fn(x_tmp)
+
+    writer.add_graph(net, x_tmp)
+
     size = len(train_dataloader.dataset)
     for epoch in range(NUM_EPOCHS):
 
         net.train()
         print(f"Epoch: {epoch}")
+
+        avg_train_loss = 0
+        avg_train_dice = 0
+        avg_val_dice = 0
+        avg_val_loss = 0
         for batch, (X, y) in enumerate(train_dataloader):
 
             X = X.to(device=device, dtype=torch.float32)
@@ -137,21 +164,28 @@ if __name__ == "__main__":
                 logits = net(reflection_pad_1_fn(X))
 
             loss = loss_fn(logits, y)
-            pred = torch.argmax(softmax_fn(logits), dim=1).float()
 
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
 
-            if batch % 32 == 0:
-                loss, current = loss.item(), batch * BATCH_SIZE + len(X)
-                print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
+            pred = torch.argmax(softmax_fn(logits), dim=1)
+            avg_train_dice += dice_coefficient(pred, y)
+            avg_train_loss += loss
+
+            # if batch % 32 == 0:
+            #     loss, current = loss.item(), batch * BATCH_SIZE + len(X)
+            #     print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
+
+        avg_train_loss /= batch
+        avg_train_dice /= batch
+
+        writer.add_scalar("charts/train_dice", avg_train_dice, epoch)
+        writer.add_scalar("charts/train_loss", avg_train_loss, epoch)
 
         net.eval()
 
         with torch.no_grad():
-
-            avg_dice_score = 0
 
             for batch, (X, y) in enumerate(val_dataloader):
                 X = X.to(device=device)
@@ -161,12 +195,17 @@ if __name__ == "__main__":
                     logits = net(reflection_pad_68_fn(X))
                 elif MODEL_TYPE == 'TransUNet':
                     logits = net(reflection_pad_1_fn(X))
+
+                avg_val_loss += loss_fn(logits, y)                
                 pred = torch.argmax(softmax_fn(logits), dim=1)
 
-                avg_dice_score += dice_coefficient(pred, y)
+                avg_val_dice += dice_coefficient(pred, y)
 
-            avg_dice_score /= batch
-            print(f"Avg. dice coeff. at epoch {epoch}: {avg_dice_score}")
+            avg_val_dice /= batch
+            avg_val_loss /= batch
+            # print(f"Avg. dice coeff. at epoch {epoch}: {avg_dice_score}")
+            writer.add_scalar("charts/val_dice", avg_val_dice, epoch)
+            writer.add_scalar("charts/val_loss", avg_val_loss, epoch)
 
     torch.save(net, "trained_unet.pth")
 
