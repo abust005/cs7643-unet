@@ -102,6 +102,7 @@ if __name__ == "__main__":
     for epoch in range(NUM_EPOCHS):
 
         net.train()
+        
         print(f"Epoch: {epoch}")
         for batch, (X, y) in enumerate(train_dataloader):
 
@@ -140,7 +141,7 @@ if __name__ == "__main__":
                     logits = net(reflection_pad_1_fn(X))
                 pred = torch.argmax(softmax_fn(logits), dim=1)
 
-                avg_dice_score += (1 + diceCoefficient(pred, y, n_classes=4, logits=False))
+                avg_dice_score += (diceCoefficient(pred, y, n_classes=4, logits=False, loss_compute=False))
 
             avg_dice_score /= batch
             print(f"Avg. dice coeff. at epoch {epoch}: {avg_dice_score}")

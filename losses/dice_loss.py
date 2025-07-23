@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import numpy as np
 import matplotlib.pyplot as plt
 
-def diceCoefficient(predicted, target, n_classes=3, logits=True):
+def diceCoefficient(predicted, target, n_classes=3, logits=True, loss_compute=True):
 
   if logits:
     predicted = F.softmax(predicted, dim=1)
@@ -23,7 +23,10 @@ def diceCoefficient(predicted, target, n_classes=3, logits=True):
     # add some small offset to avoid div by 0
     dice = dice + ((2 * intersect + 1e-5) / (union + 1e-5)) 
 
-  dice = 1 - (dice.mean() / n_classes)
+  if loss_compute:
+    dice = 1 - (dice.mean() / n_classes)
+  else:
+    dice = dice.mean() / n_classes
 
   return dice
 
