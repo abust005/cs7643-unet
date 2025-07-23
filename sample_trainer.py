@@ -115,7 +115,7 @@ if __name__ == "__main__":
         diceLoss = DiceLoss(n_classes=4, log_cosh=LOG_COSH, device=device)
         ceLoss = torch.nn.CrossEntropyLoss(weight=weights).to(device=device)
 
-        loss_fn = lambda x,y: (COMBO_ALPHA * diceLoss(x,y)) + ((1-COMBO_ALPHA) * diceLoss)
+        loss_fn = lambda x,y: (COMBO_ALPHA * diceLoss(x,y)) + ((1-COMBO_ALPHA) * diceLoss(x,y))
 
     softmax_fn = torch.nn.Softmax(dim=1)
     reflection_pad_68_fn = torch.nn.ReflectionPad2d(68)
