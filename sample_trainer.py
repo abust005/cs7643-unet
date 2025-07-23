@@ -102,7 +102,6 @@ if __name__ == "__main__":
     softmax_fn = torch.nn.Softmax(dim=1)
     reflection_pad_68_fn = torch.nn.ReflectionPad2d(68)
     reflection_pad_1_fn = torch.nn.ReflectionPad2d(1)
-    upsample_fn = torch.nn.Upsample((240, 240))
 
     size = len(train_dataloader.dataset)
     for epoch in range(NUM_EPOCHS):
@@ -116,8 +115,7 @@ if __name__ == "__main__":
             y = y.to(device=device)
 
             if MODEL_TYPE == 'UNet':
-                logits = net(X)
-                logits = upsample_fn(logits)
+                logits = net(reflection_pad_68_fn(X))
             elif MODEL_TYPE == 'TransUNet':
                 logits = net(reflection_pad_1_fn(X))
 
@@ -142,8 +140,7 @@ if __name__ == "__main__":
                 y = y.to(device=device)
 
                 if MODEL_TYPE == 'UNet':
-                    logits = net(X)
-                    logits = upsample_fn(logits)
+                    logits = net(reflection_pad_68_fn(X))
                 elif MODEL_TYPE == 'TransUNet':
                     logits = net(reflection_pad_1_fn(X))
 
