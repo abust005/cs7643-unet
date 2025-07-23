@@ -21,7 +21,7 @@ def diceCoefficient(predicted, target, n_classes=3, logits=True):
     union = pred_mask.sum(dim=(-2, -1)) + target_mask.sum(dim=(-2, -1))
 
     # add some small offset to avoid div by 0
-    dice = dice + ((2 * intersect + 1) / (union + 1)) 
+    dice = dice + ((2 * intersect + 1e-5) / (union + 1e-5)) 
 
   dice = 1 - (dice.mean() / n_classes)
 
