@@ -28,12 +28,14 @@ class TransUNet(nn.Module):
         ])
 
         # Decoder
-        self.decoder1 = DecoderBlock(1024, 512, 512)
+        #self.decoder1 = DecoderBlock(1024, 512, 512)
         self.decoder2 = DecoderBlock(512, 256, 256)
         self.decoder3 = DecoderBlock(256, 128, 128)
         self.decoder4 = DecoderBlock(128, 64, 64)
 
-        self.final_conv = nn.Conv2d(64, num_classes + 1, kernel_size=1)
+        #self.final_conv = nn.Conv2d(64, num_classes + 1, kernel_size=1)
+        self.final_conv = nn.Conv2d(64, 16, kernel_size=3, padding=1)
+        self.output_conv = nn.Conv2d(16, num_classes + 1, kernel_size=1)
 
     def forward(self, x):
         # CNN Encoder for skip connections
@@ -52,13 +54,15 @@ class TransUNet(nn.Module):
         x_patch = self.transformer_blocks(x_patch)
 
         # Reshape transformer output
-        x_trans = x_patch.transpose(1, 2).reshape(x.shape[0], 1024, H, W)
+        x_trans = x_patch.transpose(1, 2).reshape(x.shape[0], 512, H, W)
 
         # Decoder
-        x = self.decoder1(x_trans, x7)  # 1024 + 512 -> 512
-        x = self.decoder2(x, x5)        # 512 + 256 -> 256
+        #x = self.decoder1(x_trans, x7)  # 1024 + 512 -> 512
+        x = self.decoder2(x_trans, x5)  # 512 + 256 -> 256
         x = self.decoder3(x, x3)        # 256 + 128 -> 128
         x = self.decoder4(x, x1)        # 128 + 64 -> 64
 
-        out = self.final_conv(x)
+        #out = self.final_conv(x)
+        x = self.final_conv(x)
+        out = self.output_conv(x)
         return out
