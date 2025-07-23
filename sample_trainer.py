@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader, random_split
 import torchvision.transforms.v2 as v2
 from tqdm import tqdm
 from losses.focal_loss import FocalLoss, reweight
+from losses.dice_loss import DiceLoss
 import matplotlib.pyplot as plt
 
 TENSOR_CORES = True
@@ -97,9 +98,6 @@ if __name__ == "__main__":
         net = UNet(in_channels=4, num_classes=3, padding=0, padding_mode="reflect").to(
             device=device, dtype=torch.float32
         )
-        net = UNet(in_channels=4, num_classes=3, padding=0, padding_mode="reflect").to(
-            device=device, dtype=torch.float32
-        )
     elif MODEL_TYPE == 'TransUNet':
         net = TransUNet(img_size=240, patch_size=2, in_channels=4, num_classes=3, padding=0, padding_mode="reflect", embed_dim=1024, num_blocks=8).to(
             device=device, dtype=torch.float32
@@ -110,8 +108,9 @@ if __name__ == "__main__":
 
     softmax_fn = torch.nn.Softmax(dim=1)
     weights = reweight(torch.tensor([3257699276, 8161996, 21302318, 7268410]), beta=0.5)
-    loss_fn = FocalLoss(weights, gamma=1, device=device)
-    ce_fn = torch.nn.CrossEntropyLoss(weight=weights).to(device=device)
+    # loss_fn = FocalLoss(weights, gamma=1, device=device)
+    # ce_fn = torch.nn.CrossEntropyLoss(weight=weights).to(device=device)
+    loss_fn = DiceLoss(n_classes=4)
     reflection_pad_68_fn = torch.nn.ReflectionPad2d(68)
     reflection_pad_1_fn = torch.nn.ReflectionPad2d(1)
 
@@ -129,10 +128,9 @@ if __name__ == "__main__":
                 logits = net(reflection_pad_68_fn(X))
             elif MODEL_TYPE == 'TransUNet':
                 logits = net(reflection_pad_1_fn(X))
-            # pred = softmax_fn(logits)
+            # pred = torch.argmax(softmax_fn(logits), dim=1).float()
+            # loss = ce_fn(logits, y)
             loss = loss_fn(logits, y)
-            pred = torch.argmax(softmax_fn(logits), dim=1).float()
-            loss = ce_fn(logits, y)
 
             loss.backward()
             optimizer.step()
