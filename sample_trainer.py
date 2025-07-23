@@ -100,7 +100,7 @@ if __name__ == "__main__":
         )
 
     elif MODEL_TYPE == 'TransUNet':
-        net = TransUNet(img_size=240, patch_size=2, in_channels=4, num_classes=3, padding=0, padding_mode="reflect", embed_dim=1024, num_blocks=8).to(
+        net = TransUNet(img_size=240, patch_size=2, in_channels=4, num_classes=3, padding=0, padding_mode="reflect", embed_dim=512, num_blocks=8).to(
             device=device, dtype=torch.float32
         )
     else:
