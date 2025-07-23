@@ -24,11 +24,17 @@ def diceCoefficient(predicted, target, n_classes=3):
   return dice
 
 class DiceLoss(nn.Module):
-    def __init__(self, log_cosh=False, n_classes=3, device='cpu'):
+    def __init__(self, log_cosh=False, n_classes=3, ignore_background=True, device='cpu'):
         super().__init__()
 
         self.device = device
         self.n_classes = n_classes
+
+        # Idea taken from:
+        # https://github.com/Project-MONAI/MONAI/discussions/1727
+        self.start_idx = 0
+        if ignore_background:
+           self.start_idx = 1
 
         self.log_cosh = log_cosh
 
@@ -42,7 +48,7 @@ class DiceLoss(nn.Module):
         dice = 0
         pred_mask = F.softmax(input, dim=1)
 
-        for c in range(self.n_classes):
+        for c in range(self.start_idx, self.n_classes, 1):
           target_mask = torch.where(target==c, 1.0, 0.0)
 
           # sum over last two dimensions
