@@ -2,36 +2,22 @@ from model.unet import UNet
 from model.transunet import TransUNet
 import torch
 from time import time
-from data.dataset import BraTS2020Dataset, PyTMinMaxScalerVectorized
+from data.dataset import BraTS2020Dataset
 from torch.utils.data import DataLoader, random_split
 import torchvision.transforms.v2 as v2
 from tqdm import tqdm
 from losses.focal_loss import FocalLoss, reweight
 from losses.dice_loss import DiceLoss, diceCoefficient
-import matplotlib.pyplot as plt
 
 TENSOR_CORES = True
 NUM_EPOCHS = 5
-BATCH_SIZE = 32  # Adjust based on GPU memory
-CLEAN_DATA = True
+BATCH_SIZE = 16  # Adjust based on GPU memory
+CLEAN_DATA = False
 MIN_ACTIVE_PIXELS = 0.2 # Keeps data with at least the portion of non-zero pixel values
 
-LOSS = "CE" # CE, Focal, or
+LOSS = "Dice" # CE, Focal, or Dice
 COMPUTE_WEIGHTS = False
 MODEL_TYPE = "UNet"  # UNet or TransUNet
-
-def dice_coefficient(prediction, target, epsilon=1e-07):
-    prediction_copy = prediction.clone()
-
-    prediction_copy[prediction_copy < 0] = 0
-    prediction_copy[prediction_copy > 0] = 1
-
-    intersection = abs(torch.sum(prediction_copy * target))
-    union = abs(torch.sum(prediction_copy) + torch.sum(target))
-    dice = (2.0 * intersection + epsilon) / (union + epsilon)
-
-    return dice
-
 
 def get_mean_std(loader):
     # Compute the mean and standard deviation of all pixels in the dataset
@@ -60,13 +46,8 @@ if TENSOR_CORES:
 if __name__ == "__main__":
 
     generator1 = torch.Generator().manual_seed(42)
-    # data = BraTS2020Dataset(clean_data=CLEAN_DATA, min_active_pixels=MIN_ACTIVE_PIXELS)
 
-    # train, test, val = random_split(data, [0.7, 0.2, 0.1], generator1)
-
-    # train_dataloader = DataLoader(train, batch_size=BATCH_SIZE, shuffle=True)
-    # mean, std = get_mean_std(train_dataloader)
-
+    # Pre-computed based on training dataset when generated with manual seed
     mean = torch.tensor([0.0017, 0.0019, 0.0020, 0.0011])
     std = torch.tensor([0.0056, 0.0067, 0.0068, 0.0042])
     norm_transform = v2.Normalize(mean, std)
@@ -88,18 +69,9 @@ if __name__ == "__main__":
     print(f"Training samples: {len(train)}")
     print(f"Validation samples: {len(val)}")
 
-    print(f"Total samples: {len(data)}")
-    print(f"Training samples: {len(train)}")
-    print(f"Validation samples: {len(val)}")
-
-    print(f"Total samples: {len(data)}")
-    print(f"Training samples: {len(train)}")
-    print(f"Validation samples: {len(val)}")
-
     train_dataloader = DataLoader(train, batch_size=BATCH_SIZE, shuffle=True, pin_memory=True, num_workers=6)
     val_dataloader = DataLoader(val, batch_size=BATCH_SIZE, shuffle=False)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     if MODEL_TYPE == 'UNet':
@@ -114,7 +86,7 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"Unsupported model_type: {MODEL_TYPE}")
     
-    optimizer = torch.optim.Adam(net.parameters(), lr=0.001)  # momentum=0.99)
+    optimizer = torch.optim.Adam(net.parameters(), lr=0.0005)  # momentum=0.99)
 
     weights = None
     if COMPUTE_WEIGHTS:
@@ -124,10 +96,13 @@ if __name__ == "__main__":
         loss_fn = torch.nn.CrossEntropyLoss(weight=weights).to(device=device)
     elif LOSS == "Focal":
         loss_fn = FocalLoss(weight=weights, gamma=1, device=device)
+    elif LOSS == "Dice":
+        loss_fn = DiceLoss(n_classes=4, device=device)
 
     softmax_fn = torch.nn.Softmax(dim=1)
     reflection_pad_68_fn = torch.nn.ReflectionPad2d(68)
     reflection_pad_1_fn = torch.nn.ReflectionPad2d(1)
+    upsample_fn = torch.nn.Upsample((240, 240))
 
     size = len(train_dataloader.dataset)
     for epoch in range(NUM_EPOCHS):
@@ -141,7 +116,8 @@ if __name__ == "__main__":
             y = y.to(device=device)
 
             if MODEL_TYPE == 'UNet':
-                logits = net(reflection_pad_68_fn(X))
+                logits = net(X)
+                logits = upsample_fn(logits)
             elif MODEL_TYPE == 'TransUNet':
                 logits = net(reflection_pad_1_fn(X))
 
@@ -166,7 +142,8 @@ if __name__ == "__main__":
                 y = y.to(device=device)
 
                 if MODEL_TYPE == 'UNet':
-                    logits = net(reflection_pad_68_fn(X))
+                    logits = net(X)
+                    logits = upsample_fn(logits)
                 elif MODEL_TYPE == 'TransUNet':
                     logits = net(reflection_pad_1_fn(X))
 
