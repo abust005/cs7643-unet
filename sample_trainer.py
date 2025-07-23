@@ -11,7 +11,7 @@ from losses.dice_loss import DiceLoss, diceCoefficient
 
 TENSOR_CORES = True
 NUM_EPOCHS = 5
-BATCH_SIZE = 16  # Adjust based on GPU memory
+BATCH_SIZE = 8  # Adjust based on GPU memory
 CLEAN_DATA = False
 MIN_ACTIVE_PIXELS = 0.2 # Keeps data with at least the portion of non-zero pixel values
 
