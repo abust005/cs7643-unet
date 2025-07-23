@@ -7,30 +7,16 @@ from torch.utils.data import DataLoader, random_split
 import torchvision.transforms.v2 as v2
 from tqdm import tqdm
 from losses.focal_loss import FocalLoss, reweight
-from losses.dice_loss import DiceLoss
+from losses.dice_loss import DiceLoss, diceCoefficient
 import matplotlib.pyplot as plt
 
 TENSOR_CORES = True
 NUM_EPOCHS = 5
 BATCH_SIZE = 8  # Adjust based on GPU memory
-CLEAN_DATA = True
+CLEAN_DATA = False
 MIN_ACTIVE_PIXELS = 0.2 # Keeps data with at least the portion of non-zero pixel values
 
-MODEL_TYPE = "TransUNet"  # UNet or TransUNet
-
-
-def dice_coefficient(prediction, target, epsilon=1e-07):
-    prediction_copy = prediction.clone()
-
-    prediction_copy[prediction_copy < 0] = 0
-    prediction_copy[prediction_copy > 0] = 1
-
-    intersection = abs(torch.sum(prediction_copy * target))
-    union = abs(torch.sum(prediction_copy) + torch.sum(target))
-    dice = (2.0 * intersection + epsilon) / (union + epsilon)
-
-    return dice
-
+MODEL_TYPE = "UNet"  # UNet or TransUNet
 
 def get_mean_std(loader):
     # Compute the mean and standard deviation of all pixels in the dataset
@@ -48,7 +34,6 @@ def get_mean_std(loader):
 
     return mean, std
 
-
 if TENSOR_CORES:
     # The flag below controls whether to allow TF32 on matmul. This flag defaults to False
     # in PyTorch 1.12 and later.
@@ -60,20 +45,15 @@ if TENSOR_CORES:
 if __name__ == "__main__":
 
     generator1 = torch.Generator().manual_seed(42)
-    data = BraTS2020Dataset(clean_data=CLEAN_DATA, min_active_pixels=MIN_ACTIVE_PIXELS)
 
-    train, test, val = random_split(data, [0.7, 0.2, 0.1], generator1)
-
-    train_dataloader = DataLoader(train, batch_size=BATCH_SIZE, shuffle=True)
+    # data = BraTS2020Dataset(clean_data=CLEAN_DATA, min_active_pixels=MIN_ACTIVE_PIXELS)
+    # train, test, val = random_split(data, [0.7, 0.2, 0.1], generator1)
+    # train_dataloader = DataLoader(train, batch_size=BATCH_SIZE, shuffle=True)
     # mean, std = get_mean_std(train_dataloader)
 
     mean = torch.tensor([0.0017, 0.0019, 0.0020, 0.0011])
     std = torch.tensor([0.0056, 0.0067, 0.0068, 0.0042])
     norm_transform = v2.Normalize(mean, std)
-
-    print(f"Total samples: {len(data)}")
-    print(f"Training samples: {len(train)}")
-    print(f"Validation samples: {len(val)}")
 
     # Parameters
     transform = v2.Compose(
@@ -88,7 +68,11 @@ if __name__ == "__main__":
     data = BraTS2020Dataset(normalizer=norm_transform, clean_data=CLEAN_DATA, min_active_pixels=MIN_ACTIVE_PIXELS)
     train, test, val = random_split(data, [0.7, 0.2, 0.1], generator1)
 
-    train_dataloader = DataLoader(train, batch_size=BATCH_SIZE, shuffle=True, pin_memory=True, num_workers=4)
+    print(f"Total samples: {len(data)}")
+    print(f"Training samples: {len(train)}")
+    print(f"Validation samples: {len(val)}")
+
+    train_dataloader = DataLoader(train, batch_size=BATCH_SIZE, shuffle=True, pin_memory=True, num_workers=6)
     val_dataloader = DataLoader(val, batch_size=BATCH_SIZE, shuffle=False)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -156,7 +140,7 @@ if __name__ == "__main__":
                     logits = net(reflection_pad_1_fn(X))
                 pred = torch.argmax(softmax_fn(logits), dim=1)
 
-                avg_dice_score += dice_coefficient(pred, y)
+                avg_dice_score += diceCoefficient(pred, y, n_classes=4, logits=False)
 
             avg_dice_score /= batch
             print(f"Avg. dice coeff. at epoch {epoch}: {avg_dice_score}")
