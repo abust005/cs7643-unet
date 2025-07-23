@@ -25,6 +25,7 @@ LOSS = "Combo" # CE, Focal, Dice, or Combo
 COMBO_ALPHA = 0.65
 LOG_COSH=True
 COMPUTE_WEIGHTS = False
+WEIGHTS_BETA = 0.5
 
 '''
 Model Type
@@ -102,7 +103,7 @@ if __name__ == "__main__":
 
     weights = None
     if COMPUTE_WEIGHTS:
-        weights = reweight(torch.tensor([3257699276, 8161996, 21302318, 7268410]), beta=0.5)
+        weights = reweight(torch.tensor([3257699276, 8161996, 21302318, 7268410]), beta=WEIGHTS_BETA)
 
     if LOSS == "CE":
         loss_fn = torch.nn.CrossEntropyLoss(weight=weights).to(device=device)
