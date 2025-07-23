@@ -9,15 +9,19 @@ from tqdm import tqdm
 from losses.focal_loss import FocalLoss, reweight
 import matplotlib.pyplot as plt
 
+from torch.utils.tensorboard import SummaryWriter
+
 TENSOR_CORES = True
 NUM_EPOCHS = 5
-BATCH_SIZE = 32  # Adjust based on GPU memory
+BATCH_SIZE = 8  # Adjust based on GPU memory
 CLEAN_DATA = True
 MIN_ACTIVE_PIXELS = 0.2 # Keeps data with at least the portion of non-zero pixel values
 
-LOSS = "CE" # CE, Focal, or
-COMPUTE_WEIGHTS = False
-MODEL_TYPE = "UNet"  # UNet or TransUNet
+LOSS = "Focal" # CE, Focal, or
+COMPUTE_WEIGHTS = True
+MODEL_TYPE = "TransUNet"  # UNet or TransUNet
+
+USE_TENSORBOARD = True
 
 def dice_coefficient(prediction, target, epsilon=1e-07):
     prediction_copy = prediction.clone()
@@ -50,6 +54,11 @@ def get_mean_std(loader):
 
 
 if TENSOR_CORES:
+
+    if USE_TENSORBOARD:
+        writer = SummaryWriter("logs/test")
+
+
     # The flag below controls whether to allow TF32 on matmul. This flag defaults to False
     # in PyTorch 1.12 and later.
     torch.backends.cuda.matmul.allow_tf32 = True
@@ -120,6 +129,15 @@ if __name__ == "__main__":
     softmax_fn = torch.nn.Softmax(dim=1)
     reflection_pad_68_fn = torch.nn.ReflectionPad2d(68)
     reflection_pad_1_fn = torch.nn.ReflectionPad2d(1)
+
+    if USE_TENSORBOARD:
+        x_tmp, _ = next(iter(train_dataloader))
+        x_tmp = x_tmp.to(device=device, dtype=torch.float32)
+        if MODEL_TYPE == 'UNet':
+            x_tmp = reflection_pad_68_fn(x_tmp)
+        elif MODEL_TYPE == 'TransUNet':
+            x_tmp = reflection_pad_1_fn(x_tmp)
+        writer.add_graph(net, x_tmp)
 
     size = len(train_dataloader.dataset)
     for epoch in range(NUM_EPOCHS):
