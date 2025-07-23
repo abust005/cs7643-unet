@@ -12,8 +12,8 @@ import matplotlib.pyplot as plt
 
 TENSOR_CORES = True
 NUM_EPOCHS = 5
-BATCH_SIZE = 8  # Adjust based on GPU memory
-CLEAN_DATA = False
+BATCH_SIZE = 16  # Adjust based on GPU memory
+CLEAN_DATA = True
 MIN_ACTIVE_PIXELS = 0.2 # Keeps data with at least the portion of non-zero pixel values
 
 MODEL_TYPE = "UNet"  # UNet or TransUNet
@@ -102,7 +102,7 @@ if __name__ == "__main__":
     for epoch in range(NUM_EPOCHS):
 
         net.train()
-        
+
         print(f"Epoch: {epoch}")
         for batch, (X, y) in enumerate(train_dataloader):
 
@@ -139,9 +139,10 @@ if __name__ == "__main__":
                     logits = net(reflection_pad_68_fn(X))
                 elif MODEL_TYPE == 'TransUNet':
                     logits = net(reflection_pad_1_fn(X))
+
                 pred = torch.argmax(softmax_fn(logits), dim=1)
 
-                avg_dice_score += (diceCoefficient(pred, y, n_classes=4, logits=False, loss_compute=False))
+                avg_dice_score += (diceCoefficient(pred, y, n_classes=4))
 
             avg_dice_score /= batch
             print(f"Avg. dice coeff. at epoch {epoch}: {avg_dice_score}")
