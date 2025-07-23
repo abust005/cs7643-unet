@@ -10,7 +10,7 @@ def diceCoefficient(predicted, target, n_classes=3, logits=True):
     predicted = F.softmax(predicted, dim=1)
     predicted = torch.argmax(predicted, dim=1)
 
-  dice = 0
+  dice = torch.zeros(predicted.shape[0], requires_grad=True).to(device=predicted.device)
 
   for c in range(n_classes):
     pred_mask = torch.where(predicted==c, 1.0, 0.0)
@@ -20,9 +20,10 @@ def diceCoefficient(predicted, target, n_classes=3, logits=True):
     intersect = (pred_mask * target_mask).sum(dim=(-2, -1))
     union = pred_mask.sum(dim=(-2, -1)) + target_mask.sum(dim=(-2, -1))
 
-    dice += (2 * intersect) / union
+    # add some small offset to avoid div by 0
+    dice = dice + ((2 * intersect + 1) / (union + 1)) 
 
-  dice = 1 - (dice / n_classes)
+  dice = 1 - (dice.mean() / n_classes)
 
   return dice
 
