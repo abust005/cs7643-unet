@@ -9,14 +9,26 @@ from tqdm import tqdm
 from losses.focal_loss import FocalLoss, reweight
 from losses.dice_loss import DiceLoss, diceCoefficient
 
+'''
+Computation Parameters
+'''
 TENSOR_CORES = True
 NUM_EPOCHS = 5
 BATCH_SIZE = 8  # Adjust based on GPU memory
 CLEAN_DATA = False
 MIN_ACTIVE_PIXELS = 0.2 # Keeps data with at least the portion of non-zero pixel values
 
-LOSS = "Dice" # CE, Focal, or Dice
+'''
+Loss Specific Parameters
+'''
+LOSS = "Combo" # CE, Focal, Dice, or Combo
+COMBO_ALPHA = 0.65
+LOG_COSH=True
 COMPUTE_WEIGHTS = False
+
+'''
+Model Type
+'''
 MODEL_TYPE = "UNet"  # UNet or TransUNet
 
 def get_mean_std(loader):
@@ -97,7 +109,12 @@ if __name__ == "__main__":
     elif LOSS == "Focal":
         loss_fn = FocalLoss(weight=weights, gamma=1, device=device)
     elif LOSS == "Dice":
-        loss_fn = DiceLoss(n_classes=4, device=device)
+        loss_fn = DiceLoss(n_classes=4, log_cosh=LOG_COSH, device=device)
+    elif LOSS == "Combo":
+        diceLoss = DiceLoss(n_classes=4, log_cosh=LOG_COSH, device=device)
+        ceLoss = torch.nn.CrossEntropyLoss(weight=weights).to(device=device)
+
+        loss_fn = lambda x,y: (COMBO_ALPHA * diceLoss(x,y)) + ((1-COMBO_ALPHA) * diceLoss)
 
     softmax_fn = torch.nn.Softmax(dim=1)
     reflection_pad_68_fn = torch.nn.ReflectionPad2d(68)
