@@ -14,8 +14,8 @@ Computation Parameters
 '''
 TENSOR_CORES = True
 NUM_EPOCHS = 5
-BATCH_SIZE = 8  # Adjust based on GPU memory
-CLEAN_DATA = False
+BATCH_SIZE = 16  # Adjust based on GPU memory
+CLEAN_DATA = True
 MIN_ACTIVE_PIXELS = 0.2 # Keeps data with at least the portion of non-zero pixel values
 
 '''
@@ -24,7 +24,7 @@ Loss Specific Parameters
 LOSS = "Combo" # CE, Focal, Dice, or Combo
 COMBO_ALPHA = 0.65
 LOG_COSH=True
-COMPUTE_WEIGHTS = False
+COMPUTE_WEIGHTS = True
 WEIGHTS_BETA = 0.5
 
 '''

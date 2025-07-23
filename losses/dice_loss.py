@@ -39,7 +39,7 @@ class DiceLoss(nn.Module):
         :return: tensor of focal loss in scalar
         """
 
-        dice = torch.zeros(input.shape[0], requires_grad=True).to(device=input.device)
+        dice = 0
         pred_mask = F.softmax(input, dim=1)
 
         for c in range(self.n_classes):
@@ -48,11 +48,9 @@ class DiceLoss(nn.Module):
           # sum over last two dimensions
           intersect = (pred_mask[:,c,:,:] * target_mask).sum(dim=(-2, -1))
           union = pred_mask[:,c,:,:].sum(dim=(-2, -1)) + target_mask.sum(dim=(-2, -1))
-
-          union[union <= 1e-7] = 1.0
           
-          # add some small offset to avoid div by 0
-          dice = dice + ((2 * intersect) / (union)) 
+          # add some smoothing factor (trying to find the paper that explains why)
+          dice = dice + (2 * ((intersect + 1) / (union + 1)))
 
         loss = 1 - (dice.mean() / self.n_classes)
 
