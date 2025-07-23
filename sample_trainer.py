@@ -94,7 +94,7 @@ if __name__ == "__main__":
     weights = reweight(torch.tensor([3257699276, 8161996, 21302318, 7268410]), beta=0.5)
     # loss_fn = FocalLoss(weights, gamma=1, device=device)
     # ce_fn = torch.nn.CrossEntropyLoss(weight=weights).to(device=device)
-    loss_fn = DiceLoss(n_classes=4)
+    loss_fn = DiceLoss(n_classes=4, device=device)
     reflection_pad_68_fn = torch.nn.ReflectionPad2d(68)
     reflection_pad_1_fn = torch.nn.ReflectionPad2d(1)
 
