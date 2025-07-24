@@ -17,7 +17,6 @@ Computation Parameters
 TENSOR_CORES = True
 NUM_EPOCHS = 5
 BATCH_SIZE = 16  # Adjust based on GPU memory
-BATCH_SIZE = 16  # Adjust based on GPU memory
 CLEAN_DATA = True
 MIN_ACTIVE_PIXELS = 0.2 # Keeps data with at least the portion of non-zero pixel values
 
@@ -33,14 +32,12 @@ WEIGHTS_BETA = 0.5
 '''
 Model Type
 '''
-MODEL_TYPE = "UNet"  # UNet or TransUNet
-LOSS = "Focal" # CE, Focal, or
-COMPUTE_WEIGHTS = True
 MODEL_TYPE = "TransUNet"  # UNet or TransUNet
 
 # Ex. description: "Cleaned_0.2_WeightedCE_UNet"
 RUN_DESC = f"--{f"Cleaned_{MIN_ACTIVE_PIXELS}" if CLEAN_DATA else "Uncleaned"}_ \
                 {"Weighted" if COMPUTE_WEIGHTS else "Unweighted"} \
+                {"LogCosh" if LOG_COSH and (LOSS=="Dice" or LOSS=="Combo") else ""} \
                 {LOSS}_ \
                 {MODEL_TYPE}"
 
