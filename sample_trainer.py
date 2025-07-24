@@ -15,7 +15,7 @@ from torch.utils.tensorboard import SummaryWriter
 Computation Parameters
 '''
 TENSOR_CORES = True
-NUM_EPOCHS = 5
+NUM_EPOCHS = 10
 BATCH_SIZE = 16  # Adjust based on GPU memory
 CLEAN_DATA = True
 MIN_ACTIVE_PIXELS = 0.2 # Keeps data with at least the portion of non-zero pixel values
@@ -23,7 +23,7 @@ MIN_ACTIVE_PIXELS = 0.2 # Keeps data with at least the portion of non-zero pixel
 '''
 Loss Specific Parameters
 '''
-LOSS = "Combo" # CE, Focal, Dice, or Combo
+LOSS = "Dice" # CE, Focal, Dice, or Combo
 COMBO_ALPHA = 0.65
 LOG_COSH=True
 COMPUTE_WEIGHTS = True
@@ -40,18 +40,6 @@ RUN_DESC = f"--{f"Cleaned_{MIN_ACTIVE_PIXELS}" if CLEAN_DATA else "Uncleaned"}_ 
                 {"LogCosh" if LOG_COSH and (LOSS=="Dice" or LOSS=="Combo") else ""} \
                 {LOSS}_ \
                 {MODEL_TYPE}"
-
-def dice_coefficient(prediction, target, epsilon=1e-07):
-    prediction_copy = prediction.clone()
-
-    prediction_copy[prediction_copy < 0] = 0
-    prediction_copy[prediction_copy > 0] = 1
-
-    intersection = abs(torch.sum(prediction_copy * target))
-    union = abs(torch.sum(prediction_copy) + torch.sum(target))
-    dice = (2.0 * intersection + epsilon) / (union + epsilon)
-
-    return dice
 
 
 def get_mean_std(loader):
