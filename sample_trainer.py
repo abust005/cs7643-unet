@@ -41,7 +41,6 @@ RUN_DESC = f"--{f"Cleaned_{MIN_ACTIVE_PIXELS}" if CLEAN_DATA else "Uncleaned"}_ 
                 {LOSS}_ \
                 {MODEL_TYPE}"
 
-
 def get_mean_std(loader):
     # Compute the mean and standard deviation of all pixels in the dataset
     num_pixels = 0
@@ -175,7 +174,7 @@ if __name__ == "__main__":
             optimizer.zero_grad()
 
             pred = torch.argmax(softmax_fn(logits), dim=1)
-            avg_train_dice += dice_coefficient(pred, y)
+            avg_train_dice += diceCoefficient(pred, y, n_classes=4)
             avg_train_loss += loss
 
             # if batch % 32 == 0:
