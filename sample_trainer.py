@@ -17,7 +17,7 @@ Computation Parameters
 TENSOR_CORES = True
 NUM_EPOCHS = 10
 BATCH_SIZE = 16  # Adjust based on GPU memory
-CLEAN_DATA = True
+CLEAN_DATA = False
 MIN_ACTIVE_PIXELS = 0.2 # Keeps data with at least the portion of non-zero pixel values
 
 '''
@@ -37,9 +37,13 @@ MODEL_TYPE = "TransUNet"  # UNet or TransUNet
 # Ex. description: "Cleaned_0.2_WeightedCE_UNet"
 RUN_DESC = f"--{f"Cleaned_{MIN_ACTIVE_PIXELS}" if CLEAN_DATA else "Uncleaned"}_ \
                 {"Weighted" if COMPUTE_WEIGHTS else "Unweighted"} \
+                {f"Beta{WEIGHTS_BETA}" if COMPUTE_WEIGHTS else ""} \
+                {f"Alpha{COMBO_ALPHA}" if LOSS=="Combo" else ""} \
                 {"LogCosh" if LOG_COSH and (LOSS=="Dice" or LOSS=="Combo") else ""} \
                 {LOSS}_ \
                 {MODEL_TYPE}"
+
+RUN_DESC = "".join(RUN_DESC.split())
 
 def get_mean_std(loader):
     # Compute the mean and standard deviation of all pixels in the dataset
