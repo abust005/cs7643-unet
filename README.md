@@ -2,7 +2,7 @@
 Semantic segmentation project for CS7643 Summer 2025
 
 ## Installation
-1. Download and install anaconda
+1. Download and install conda
 2. Clone the repository
     ```
     git clone https://github.com/abust005/cs7643-unet.git
